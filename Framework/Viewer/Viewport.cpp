@@ -3,6 +3,9 @@
 
 Viewport::Viewport(float width, float height, float x, float y, float minDepth, float maxDepth)
 {
+	this->width = (width <= 0.0f) ? D3D::Width() : width;
+	this->height = (height <= 0.0f) ? D3D::Height() : height;
+
 	Set(width, height, x, y, minDepth, maxDepth);
 }
 

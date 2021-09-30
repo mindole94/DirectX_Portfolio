@@ -15,8 +15,9 @@ ModelAnimator::ModelAnimator(Shader * shader)
 	instanceBuffer = new VertexBuffer(worlds, MAX_MODEL_INSTANCE, sizeof(Matrix), 1, true);
 
 	for (UINT i = 0; i < MAX_MODEL_INSTANCE; i++)
-		colors[i] = Math::RandomColor4();
-	instanceColorBuffer = new VertexBuffer(colors, MAX_MODEL_INSTANCE, sizeof(Color), 2);
+		colors[i] = Color(0.0f, 0.0f, 0.0f, 0.0f);
+		
+	instanceColorBuffer = new VertexBuffer(colors, MAX_MODEL_INSTANCE, sizeof(Color), 2, true);
 
 	//CreateComputeShader
 	{
@@ -65,6 +66,7 @@ ModelAnimator::~ModelAnimator()
 	SafeRelease(texture);
 	SafeRelease(srv);
 
+	SafeDelete(blendBuffer);
 	SafeDelete(tweenBuffer);
 	SafeDelete(instanceBuffer);
 	SafeDelete(instanceColorBuffer);
@@ -107,10 +109,8 @@ void ModelAnimator::Update()
 			UpdateNormalMode(i);
 	}
 
-
 	tweenBuffer->Render();
 	blendBuffer->Render();
-
 
 	frameTime += Time::Delta();
 	if (frameTime > (1.0f / frameRate))
@@ -146,7 +146,7 @@ void ModelAnimator::UpdateTweenMode(UINT index)
 		
 		desc.Curr.Time = desc.Curr.RunningTime / time;
 
-		if (modelPlayMode[index].isPlay == true)
+		if (modelPlayMode[index].bPlay == true)
 		{
 			if (desc.Next.Clip > -1)
 			{
@@ -161,13 +161,13 @@ void ModelAnimator::UpdateTweenMode(UINT index)
 				desc.Curr.NextFrame = (desc.Curr.CurrFrame + 1) % clip->FrameCount();//TODO :desc.Curr.NextFrame = (desc.Curr.CurrFrame + 1) % clip->FrameCount()
 			}
 		}
-		if (modelPlayMode[index].isPause == true)
+		if (modelPlayMode[index].bPause == true)
 		{
 			desc.Curr.CurrFrame = desc.Curr.CurrFrame;
 			desc.Curr.NextFrame = desc.Curr.CurrFrame;
 		}
 
-		if (modelPlayMode[index].isStop == true)
+		if (modelPlayMode[index].bStop == true)
 		{
 			desc.Curr.CurrFrame = 0;
 			desc.Curr.NextFrame = 0;
@@ -181,7 +181,7 @@ void ModelAnimator::UpdateTweenMode(UINT index)
 		desc.ChangeTime += Time::Delta();
 		desc.TweenTime = desc.ChangeTime / desc.TakeTime;// / clip->FrameRate();
 
-		if (desc.TweenTime >= 1.0f)//다음 프레임으로 넘어갈때
+		if (desc.TweenTime >= 1.0f)//다음 클립으로 넘어갈때
 		{
 			desc.Curr = desc.Next;//다음동작을 현재 동작으로 
 
@@ -225,7 +225,7 @@ void ModelAnimator::UpdateBlendMode(UINT index)
 		desc.Clip[i].RunningTime += Time::Delta();
 		float time = 1.0f / clip->FrameRate() / desc.Clip[i].Speed;
 
-		if (modelPlayMode[index].isPlay == true)
+		if (modelPlayMode[index].bPlay == true)
 		{
 			if (desc.Clip[i].Time >= 1.0f)//현재 프레임 끝났을때
 			{
@@ -236,13 +236,13 @@ void ModelAnimator::UpdateBlendMode(UINT index)
 			}
 		}
 
-		if (modelPlayMode[index].isPause = true)
+		if (modelPlayMode[index].bPause = true)
 		{
 			desc.Clip[i].CurrFrame = desc.Clip[i].CurrFrame;
 			desc.Clip[i].NextFrame = desc.Clip[i].CurrFrame;
 		}
 
-		if (modelPlayMode[index].isStop == true)
+		if (modelPlayMode[index].bStop == true)
 		{
 			desc.Clip[i].CurrFrame = 0;
 			desc.Clip[i].NextFrame = 0;
@@ -265,7 +265,7 @@ void ModelAnimator::UpdateNormalMode(UINT index)
 
 		desc.Curr.Time = desc.Curr.RunningTime / time;
 
-		if (modelPlayMode[index].isPlay == true)
+		if (modelPlayMode[index].bPlay == true)
 		{
 			if (desc.Curr.Time >= 1.0f)//현재 프레임이 끝났을때
 			{
@@ -275,13 +275,13 @@ void ModelAnimator::UpdateNormalMode(UINT index)
 				desc.Curr.NextFrame = (desc.Curr.CurrFrame + 1) % clip->FrameCount();//TODO :desc.Curr.NextFrame = (desc.Curr.CurrFrame + 1) % clip->FrameCount()
 			}
 		}
-		if (modelPlayMode[index].isPause == true)
+		if (modelPlayMode[index].bPause == true)
 		{
 			desc.Curr.CurrFrame = desc.Curr.CurrFrame;
 			desc.Curr.NextFrame = desc.Curr.CurrFrame;
 		}
 
-		if (modelPlayMode[index].isStop == true)
+		if (modelPlayMode[index].bStop == true)
 		{
 			desc.Curr.CurrFrame = 0;
 			desc.Curr.NextFrame = 0;
@@ -296,7 +296,7 @@ void ModelAnimator::UpdateNormalMode(UINT index)
 		desc.Next.Clip = -1;
 		desc.Next.CurrFrame = 0;
 		desc.Next.NextFrame = 0;
-		desc.Next.Time = 0.5;
+		desc.Next.Time = 0.0;
 		desc.Next.RunningTime = 0.0f;
 
 		desc.ChangeTime = 0.0f;
@@ -339,6 +339,8 @@ void ModelAnimator::ReadClip(wstring file)
 
 void ModelAnimator::PlayTweenMode(UINT instance, UINT clip, float speed, float takeTime)
 {
+	if (tweenDesc[instance].Curr.Clip == clip) return;
+
 	blendDesc[instance].Mode = 0;
 
 	tweenDesc[instance].TakeTime = takeTime;
@@ -357,6 +359,8 @@ void ModelAnimator::PlayBlendMode(UINT instance, UINT clip1, UINT clip2, UINT cl
 
 void ModelAnimator::PlayNormalMode(UINT instance, UINT clip, float speed, float takeTime)
 {
+	if (tweenDesc[instance].Curr.Clip == clip) return;
+	
 	blendDesc[instance].Mode = 2;
 
 	tweenDesc[instance].TakeTime = takeTime;
@@ -389,37 +393,56 @@ void ModelAnimator::UpdateTransforms()
 {
 	for (UINT i = 0; i < transforms.size(); i++)
 		memcpy(worlds[i], transforms[i]->World(), sizeof(Matrix));
-
+	
 	D3D11_MAPPED_SUBRESOURCE subResource;
 	D3D::GetDC()->Map(instanceBuffer->Buffer(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subResource);
 	{
 		memcpy(subResource.pData, worlds, sizeof(Matrix) * MAX_MODEL_INSTANCE);
 	}
 	D3D::GetDC()->Unmap(instanceBuffer->Buffer(), 0);
-
-
 	inputWorldBuffer->CopyToInput(worlds);
+
+	D3D::GetDC()->Map(instanceColorBuffer->Buffer(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subResource);
+	{
+		memcpy(subResource.pData, colors, sizeof(Color) * MAX_MODEL_INSTANCE);
+	}
+	D3D::GetDC()->Unmap(instanceColorBuffer->Buffer(), 0);
 }
 
 void ModelAnimator::SetCurrFrameTweenMode(int instance, int frame)
 {
-	/*ModelClip* clip = model->ClipByIndex(tweenDesc[instance].Curr.Clip);
-	tweenDesc[instance].Curr.CurrFrame = frame;
-	tweenDesc[instance].Curr.NextFrame = (frame + 1) % clip->FrameCount();*/
-	TweenDesc& desc = tweenDesc[instance];
+	/*TweenDesc& desc = tweenDesc[instance];
 	desc.Curr.CurrFrame = desc.Curr.CurrFrame;
 	desc.Curr.NextFrame = desc.Curr.CurrFrame;
+*/
+	ModelClip* clip = model->ClipByIndex(tweenDesc[0].Curr.Clip);
+	tweenDesc[0].Curr.CurrFrame = frame;
+	tweenDesc[0].Curr.NextFrame = frame - 1;
+	//tweenDesc[0].Curr.NextFrame = (frame + 1) % clip->FrameCount();
+}
+
+void ModelAnimator::PlayAnimation(int instance)
+{
+	modelPlayMode[instance].bPlay = true;
+	modelPlayMode[instance].bPause = modelPlayMode[instance].bStop = false;
+}
+
+void ModelAnimator::PauseAnimation(int instance)
+{
+	modelPlayMode[instance].bPause = true;
+	modelPlayMode[instance].bStop = modelPlayMode[instance].bPlay = false;
+}
+
+void ModelAnimator::StopAnimation(int instance)
+{
+	modelPlayMode[instance].bStop = true;
+	modelPlayMode[instance].bPlay = modelPlayMode[instance].bPause = false;
 }
 
 void ModelAnimator::ResetFrame(UINT instance)//, UINT clip)
 {
 	TweenDesc& desc = tweenDesc[instance];
-	ModelClip* clip = model->ClipByIndex(tweenDesc[instance].Curr.Clip);
-
-	desc.Curr.CurrFrame = desc.Next.CurrFrame;
-	desc.Curr.NextFrame = desc.Curr.CurrFrame;
-	//desc.Curr.Time = 0;
-	//desc.Curr.RunningTime = 0.0f;
+	//ModelClip* clip = model->ClipByIndex(tweenDesc[instance].Curr.Clip);
 
 	desc.Next.Clip = -1;
 	desc.Next.CurrFrame = 0;
@@ -429,6 +452,9 @@ void ModelAnimator::ResetFrame(UINT instance)//, UINT clip)
 
 	desc.ChangeTime = 0.0f;
 	desc.TweenTime = 0.0f;
+
+	desc.Curr.CurrFrame = desc.Next.CurrFrame;
+	desc.Curr.NextFrame = desc.Curr.CurrFrame;
 }
 
 Matrix ModelAnimator::GetAttachTransform(UINT index, UINT boneIndex)

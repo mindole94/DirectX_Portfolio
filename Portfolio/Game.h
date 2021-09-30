@@ -13,23 +13,44 @@ public:
 	virtual void ResizeScreen() override {}
 
 private:
-	void CheckHit();
-	void CheckFireball();
-	void CheckDamage();
+	void Interact();
+
+	void InteractDefault();//평타
+	void InteractSkill1();//스킬1
+	void InteractSkill2();//파이어볼
+	void InteractSkill3();//넉백
+	void InteractSkill5();//발도
+
+	void PlayerDamaged();
 
 private:
-	void CameraSetting();
+	void CameraSetting(Vector3 pos);
+	void ImGuiSetting();
 
 private:
 	Shader* shader;
 	Shadow* shadow;
 	
-	CubeSky* sky;
-	Terrain* terrain;
+	class Map* map;
+
+	RenderTarget* renderTarget;
+	DepthStencil* depthStencil;
+	Viewport* viewport;
+
+	PostEffect* postEffect;
 
 	class Player* player = NULL;
 	class Monster1* monster1 = NULL;
 	class Monster2* monster2 = NULL;
 
 	bool showCollider = true;
+	bool cameraShake = false;
+
+	Texture* dissolveMap;
+	ID3DX11EffectShaderResourceVariable* sDissolveMap;
+
+	bool onUI = true;
+
+	ColliderObject* weaponBox;
+
 };

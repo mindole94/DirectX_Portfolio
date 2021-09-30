@@ -11,6 +11,12 @@ public:
 
 	Camera* GetCamera() { return (Camera *)camera; }
 
+	Vector3 GetPosition();
+	void SetPosition(Vector3 vec);
+
+	Vector3 GetRotation();
+	void SetRotation(Vector3 vec);
+
 private:
 	struct Desc
 	{

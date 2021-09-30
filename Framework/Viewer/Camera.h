@@ -21,12 +21,12 @@ public:
 	void RotationDegree(Vector3& vec);
 	void RotationDegree(Vector3* vec);
 
-	
 	void GetMatrix(Matrix* matrix);
 
 	Vector3 Forward() { return forward; }
 	Vector3 Up() { return up; }
 	Vector3 Right() { return right; }
+	Vector3 Backward() { return -forward; }
 
 protected:
 	virtual void Rotation();
@@ -42,9 +42,6 @@ private:
 	Vector3 forward	= Vector3(+0, +0, +1);
 	Vector3 up		= Vector3(+0, +1, +0);
 	Vector3 right	= Vector3(+1, +0, +0);
-	//Vector3 back	= Vector3(+0, +0, -1);
-	//Vector3 down	= Vector3(+0, -1, +0);
-	//Vector3 left	= Vector3(-1, +0, +0);
 
 	Matrix matRotation;
 	Matrix matView;

@@ -138,20 +138,28 @@
   <ItemGroup>
     <ClInclude Include="Game.h" />
     <ClInclude Include="Main.h" />
+    <ClInclude Include="Map.h" />
     <ClInclude Include="Monster1.h" />
+    <ClInclude Include="MonsterModel.h" />
     <ClInclude Include="Monster2.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="PlayerModel.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Test.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Map.cpp" />
     <ClCompile Include="Monster1.cpp" />
+    <ClCompile Include="MonsterModel.cpp" />
     <ClCompile Include="Monster2.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="PlayerModel.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Test.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

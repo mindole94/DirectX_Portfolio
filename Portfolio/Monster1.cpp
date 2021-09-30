@@ -1,617 +1,533 @@
 #include "stdafx.h"
 #include "Monster1.h"
+#include "MonsterModel.h"
 
 Monster1::Monster1(Shader* shader)
 	: shader(shader)
 {
-	Context::Get()->GetCamera()->RotationDegree(20, -180, 0);
-	Context::Get()->GetCamera()->Position(0, 550, 715);
+	monster = new MonsterModel(shader, L"HealSpirit", num);
 
-	shader = new Shader(L"21_Render.fxo");
+	info = new Monster1Info[num];
+	behavior = new Behavior[num];
+	height = new float[num];
+	attackLight = new AttackLight[num];
 
-	CreateMonster();
+	for (int i = 0; i < num; i++)
+		behavior[i] = bIdle;
+}
 
-	for (int index = 0; index < MONSTER1_NUM; index++)
+Monster1::Monster1(Shader * shader, int num)
+	: shader(shader), num(num)
+{
+	monster = new MonsterModel(shader, L"HealSpirit", num);
+
+	info = new Monster1Info[num];
+	behavior = new Behavior[num];
+	height = new float[num];
+	attackLight = new AttackLight[num];
+
+	for (int i = 0; i < num; i++)
+		behavior[i] = bIdle;
+
+	for (int i = 0; i < num; i++)
 	{
-		monsterInfo[index].position = monster->GetTransform(index)->GetPosition();
-	}
+		attackLight[i].Light = new ParticleSystem(L"Galaxy");
+		attackLight[i].Explosion = new ParticleSystem(L"GalaxyExplosion");
 
+		PointLight light;
+		light =
+		{
+		Color(1.0f, 0.0f, 0.0f, 1.0f), //Ambient
+		Color(1.0f, 0.0f, 0.0f, 1.0f), //Diffuse
+		Color(1.0f, 0.0f, 0.0f, 1.0f), //Specular
+		Color(1.0f, 0.0f, 0.0f, 1.0f), //Emissive
+		Vector3(0.0f, 0.0f, 0.0f), 0.0f, 1.0f
+		};
+		Lighting::Get()->AddPointLight(light);
+	}
 }
 
 Monster1::~Monster1()
 {
-	SafeDelete(monster);
-	for (int index = 0; index < MONSTER1_NUM; index++)
+	for (int i = 0; i < num; i++)
 	{
-		SafeDelete(monsterInfo[index].CollidersAtt);
-		SafeDelete(monsterInfo[index].CollidersHit);
-		SafeDelete(monsterInfo[index].DeathParticle);
+		SafeDelete(attackLight[i].Light);
+		SafeDelete(attackLight[i].Explosion);
 	}
+
+	SafeDeleteArray(height);
+	SafeDeleteArray(attackLight);
+	SafeDeleteArray(behavior);
+	SafeDeleteArray(info);
+	SafeDelete(monster);
 }
 
 void Monster1::Update()
-{	
-	for (int index = 0; index < MONSTER1_NUM; index++)
+{
+	for (int i = 0; i < num; i++)
 	{
-		if (monsterInfo[index].hp > 0)
-		{
-			monsterInfo[index].position = monster->GetTransform(index)->GetPosition();
-			monsterInfo[index].position.y = monsterInfo[index].height;
-			
-			distance = D3DXVec3Length(&(playerPosition - monsterInfo[index].position));
+		if (monster->Life(i) == false) continue;
 
-			//탐색
-			if (distance < (monsterInfo[index].search == true ? 100.0f : 30.0f))
-				Follow(index);
-			else
-				Patrol(index);
-
-			//TODO : 지워라
-			monsterInfo[index].position.x = Math::Clamp(monsterInfo[index].position.x, 0.0f, 248.0f);
-			monsterInfo[index].position.z = Math::Clamp(monsterInfo[index].position.z, 0.0f, 248.0f);
-
-			monster->GetTransform(index)->Position(monsterInfo[index].position);
-
-			
-			if (monsterInfo[index].activeColliderHit == false)
-			{
-				monsterInfo[index].invincibleTime -= Time::Delta();
-
-				if (monsterInfo[index].invincibleTime < 0.0f)
-					monsterInfo[index].activeColliderHit = true;
-			}
-		}
+		//hp 0이하 사망
+		if (info[i].Hp <= 0.0f)
+			Death(i);
 		else
 		{
-			if (monsterInfo[index].deathTrigger == false)
-			{
-				Reset(index);
+			Vector3 pos;
+			monster->GetMonster()->GetTransform(i)->Position(&pos);
 
-				monsterInfo[index].deathTrigger = true;
+			//몬스터와 플레이어의 거리
+			float dist = D3DXVec3Length(&(playerPos - pos));
 
-				SetDeath(index);
-			}
+			//플레이어와의 거리가 추적 중이면 60, 아니면 30의 범위
+			if (dist > (info[i].Search == true ? 60.0f : 30.0f))
+				Idle(i, dist);
+			else
+				Battle(i, dist);
 
-			if (monsterInfo[index].duration > 10.0f) continue;
+			CountTime(i);
+			AttackCheck(i);
 
-			int frameCount = monster->GetModel()->ClipByIndex(8)->FrameCount();
-			int currFrame = monster->GetCurrentFrameTweenMode(index);
-
-			if (currFrame == frameCount - 1)
-			{
-				monster->SetPlayFrame(index, false);
-				monster->SetPauseFrame(index, true);
-
-				monsterInfo[index].duration += Time::Get()->Delta();
-
-				if (monsterInfo[index].duration > 1.0f)
-				{
-					float size = monsterInfo[index].scale.x;
-					size -= Time::Delta() * 0.05f;
-					monsterInfo[index].scale.x = size;
-					
-					monster->GetTransform(index)->Scale(size, size, size);
-
-					monsterInfo[index].DeathParticle->Add(monsterInfo[index].position);
-					monsterInfo[index].DeathParticle->Update();
-				}
-			}
+			//몬스터 높이 설정
+			monster->GetMonster()->GetTransform(i)->Position(&pos);
+			pos.y = height[i];
+			monster->GetMonster()->GetTransform(i)->Position(pos);
 		}
-
-		monsterInfo[index].debuffTime -= Time::Delta();
-		monsterInfo[index].debuffTime = Math::Clamp(monsterInfo[index].debuffTime, 0.0f, 100.0f);
 	}
 
-	monster->UpdateTransforms();
+	AttackUpdate();
 	monster->Update();
-	CollidersUpdate();
-	//ImageUpdate();
 }
 
 void Monster1::PreRender()
 {
-	monster->Pass(2);
-	monster->Render();
+	monster->PreRender();
+}
+
+void Monster1::PreRender_Reflection()
+{
+	monster->PreRender_Reflection();
 }
 
 void Monster1::Render()
 {
-	monster->Pass(10);
+	monster->BoxRender();
 	monster->Render();
-	CollidersRender();
-	//ImageRender();
-
-	//죽으면 렌더링 안함
-	for (int index = 0; index < MONSTER1_NUM; index++)
-	{
-		if (monsterInfo[index].hp > 0) continue;
-		if (monsterInfo[index].duration > 10.0f) continue;
-
-		if (monsterInfo[index].scale.x < 0.0f)
-			monster->SetModelRender(index, false);
-		
-		monsterInfo[index].DeathParticle->Render();
-	}
 }
 
-void Monster1::Damage(int index, int damageType, int damage, bool fireball)
+void Monster1::Idle(int instance, float distance)
 {
-	if (damageType == 0)
-	{
-		monsterInfo[index].isDown = true;
-	}
-	else if (damageType == 2)
-	{
-		monsterInfo[index].def -= 100;
-		monsterInfo[index].debuffTime = 15.0f;
-	}
+	info[instance].Search = false;
 
-	monsterInfo[index].hp -= damage - monsterInfo[index].def;
-	monsterInfo[index].activeColliderHit = false;
+	if (behavior[instance] == bIdle || behavior[instance] == bPatrol)
+	{
+		if (behavior[instance] == bIdle)
+		{
 
-	if(fireball == true)
-		monsterInfo[index].invincibleTime = 0.5f;
+			info[instance].IdleTime += Time::Delta();
+
+			if (info[instance].IdleTime > maxIdleTime)
+			{
+				info[instance].IdleTime = 0.0f;
+
+				Vector3 pos;
+				monster->GetMonster()->GetTransform(instance)->Position(&pos);
+
+				float patX = Math::Random(pos.x - patrolDist, pos.x + patrolDist);
+				float patZ = Math::Random(pos.z - patrolDist, pos.z + patrolDist);
+				
+				info[instance].PatrolPos = Vector3(patX, 0.0f, patZ);
+
+				while (CheckRestrictArea(info[instance].PatrolPos) == true)
+				{
+					patX = Math::Random(pos.x - patrolDist, pos.x + patrolDist);
+					patZ = Math::Random(pos.z - patrolDist, pos.z + patrolDist);
+					info[instance].PatrolPos = Vector3(patX, 0.0f, patZ);
+				}
+
+				monster->Run(instance);
+
+				behavior[instance] = bPatrol;
+			}
+		}
+		else if (behavior[instance] == bPatrol)
+		{
+			Vector3 pos, temp;
+			monster->GetMonster()->GetTransform(instance)->Position(&pos);
+			temp = pos;
+			temp.y = 0.0f;
+
+			float dist = D3DXVec3Length(&(info[instance].PatrolPos - temp));
+
+			if (dist < 3.0f)
+			{
+				monster->Idle(instance);
+				behavior[instance] = bIdle;
+			}
+			else
+			{
+				Vector3 direct = info[instance].PatrolPos - temp;
+				D3DXVec3Normalize(&direct, &direct);
+				pos += direct * speed * Time::Delta();
+
+				float dot = D3DXVec3Dot(&monster->Right(instance), &direct);
+				Vector3 temp;
+				D3DXVec3Cross(&temp, &monster->Right(instance), &direct);
+
+				float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
+				float theta = sign * acosf(dot);
+
+				Vector3 rot;
+				monster->GetMonster()->GetTransform(instance)->Rotation(&rot);
+				rot.y += theta * rotRatio;
+
+				monster->GetMonster()->GetTransform(instance)->Position(pos);
+				monster->GetMonster()->GetTransform(instance)->Rotation(rot);
+			}
+		}
+	}
 	else
-		monsterInfo[index].invincibleTime = 0.3f;
+	{
+		if (behavior[instance] == bChase)
+		{
+			int frameCount = monster->GetMonster()->GetModel()->ClipByIndex(1)->FrameCount();
+			int currFrame = monster->GetMonster()->GetCurrentFrameTweenMode(instance);
+
+			if (currFrame > frameCount - 3)
+			{
+				monster->Idle(instance);
+				behavior[instance] = bIdle;
+			}
+		}
+		else if (behavior[instance] == bAttack)
+		{
+			int frameCount = monster->GetMonster()->GetModel()->ClipByIndex(2)->FrameCount();
+			int currFrame = monster->GetMonster()->GetCurrentFrameTweenMode(instance);
+
+			if (currFrame > frameCount - 3)
+			{
+				monster->Idle(instance);
+				behavior[instance] = bIdle;
+			}
+		}
+		else if (behavior[instance] == bWait)
+		{
+			int frameCount = monster->GetMonster()->GetModel()->ClipByIndex(3)->FrameCount();
+			int currFrame = monster->GetMonster()->GetCurrentFrameTweenMode(instance);
+
+			if (currFrame > frameCount - 3)
+			{
+				monster->Idle(instance);
+				behavior[instance] = bIdle;
+			}
+		}
+	}
 }
 
-void Monster1::CreateMonster()
+void Monster1::Battle(int instance, float distance)
 {
-	monster = new ModelAnimator(shader);
-	monster->ReadMesh(L"Ssalissali/Ssalissali");
-	monster->ReadMaterial(L"Ssalissali/Ssalissali");
+	info[instance].Search = true;
 
-	monster->ReadClip(L"Ssalissali/clip/Idle");//0
-	monster->ReadClip(L"Ssalissali/clip/Walk");//1
-
-	monster->ReadClip(L"Ssalissali/clip/Run");//2
-	monster->ReadClip(L"Ssalissali/clip/Atk01");//3
-	monster->ReadClip(L"Ssalissali/clip/Wait");//4
-
-	monster->ReadClip(L"Ssalissali/clip/DownStart");//5
-	monster->ReadClip(L"Ssalissali/clip/DownLoop");//6
-	monster->ReadClip(L"Ssalissali/clip/DownEnd");//7
-
-	monster->ReadClip(L"Ssalissali/clip/Death");//8
-
-
-
-	for (int index = 0; index < MONSTER1_NUM; index++)
+	//Idle 혹은 Patrol Mode중이라면 Chase Mode
+	if (behavior[instance] == bIdle || behavior[instance] == bPatrol)
 	{
-		Transform* transform = NULL;
-		transform = monster->AddTransform();
-		
-		Vector3 posi = Math::RandomVec3(0.0f, 240.0f);
-		posi.y = 0.0f;
-		transform->Position(posi);
-		
-		transform->Scale(0.2f, 0.2f, 0.2f);
+		behavior[instance] = bChase;
+		monster->Run(instance);
+	}
+	else
+	{
+		//Chase Mode
+		if (behavior[instance] == bChase)
+		{
+			//플레이어와의 거리가 20이하면 Attack Mode
+			if (distance < 20.0f)
+			{
+				monster->Attack(instance);
+				behavior[instance] = bAttack;
+			}
+			else
+			{
+				//이동 구현
+				Vector3 pos, direct;
+				monster->GetMonster()->GetTransform(instance)->Position(&pos);
+				direct = playerPos - pos;
 
-		float rot = Math::Random(0.0f, 180.0f);
-		transform->RotationDegree(0.0f, rot, 0.0f);
+				D3DXVec3Normalize(&direct, &direct);
+				pos += direct * speed * Time::Delta();
 
-		float patX = Math::Random(posi.x - 30.0f, posi.x + 30.0f);
-		float patZ = Math::Random(posi.z - 30.0f, posi.z + 30.0f);
-		monsterInfo[index].patrolPosition = Vector3(patX, 0.0f, patZ);
-		monsterInfo[index].scale = transform->GetScale();
+				float dot = D3DXVec3Dot(&monster->Right(instance), &direct);
+				Vector3 temp;
+				D3DXVec3Cross(&temp, &monster->Right(instance), &direct);
 
-		monsterInfo[index].DeathParticle = new ParticleSystem(L"StarUp");
+				float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
+				float theta = sign * acosf(dot);
+
+				Vector3 rot;
+				monster->GetMonster()->GetTransform(instance)->Rotation(&rot);
+				rot.y += theta * rotRatio;
+
+				monster->GetMonster()->GetTransform(instance)->Position(pos);
+				monster->GetMonster()->GetTransform(instance)->Rotation(rot);
+			}
+		}
+		//Attack Mode
+		else if (behavior[instance] == bAttack)
+		{
+			int frameCount = monster->GetMonster()->GetModel()->ClipByIndex(2)->FrameCount();
+			int currFrame = monster->GetMonster()->GetCurrentFrameTweenMode(instance);
+
+			//공격박스 활성화 40프레임
+			if (currFrame == 40 && info[instance].Attacked == false)
+			{
+				monster->SetActiveAttBox(instance, true);
+
+				info[instance].Attacked = true;
+				attackLight[instance].AttackPosition = playerPos;
+			}
+
+			//Attack 종료시 Wait 모드
+			if (currFrame > frameCount - 3)
+			{
+				monster->Wait(instance);
+				behavior[instance] = bWait;
+			}
+		}
+		//Wait 모드
+		else if (behavior[instance] == bWait)
+		{
+			int frameCount = monster->GetMonster()->GetModel()->ClipByIndex(3)->FrameCount();
+			int currFrame = monster->GetMonster()->GetCurrentFrameTweenMode(instance);
+
+			//Wait Mode 종료
+			if (currFrame > frameCount - 3)
+			{
+				info[instance].WaitCount++;
+
+				//거리에 따라 Chase 혹은 Attack Mode
+				if (info[instance].WaitCount == 2)
+				{
+					info[instance].WaitCount = 0;
+
+					if (distance < 20.0f)
+					{
+						monster->Attack(instance);
+						behavior[instance] = bAttack;
+					}
+					else
+					{
+						monster->Run(instance);
+						behavior[instance] = bChase;
+					}
+				}
+			}
+		}
+		else if (behavior[instance] == bKnockback)
+		{
+			Vector3 pos;
+			monster->GetMonster()->GetTransform(instance)->Position(&pos);
+			pos += 70.0f * playerForward;
+
+			monster->GetMonster()->GetTransform(instance)->Position(pos);
+			behavior[instance] = bChase;
+		}
+	}
+}
+
+void Monster1::Death(int instance)
+{
+	if (behavior[instance] != bDeath)
+	{
+		monster->Death(instance);
+		behavior[instance] = bDeath;
 	}
 
-	monster->UpdateTransforms();
-	//monster->Pass(3);
+	int frameCount = monster->GetMonster()->GetModel()->ClipByIndex(4)->FrameCount();
+	int currFrame = monster->GetMonster()->GetCurrentFrameTweenMode(instance);
 
-	CreateColliders();
+	Color color = monster->GetMonster()->GetColor(instance);
+	//피격시의 색변화 초기화
+	color.r = 0.0f;
+
+	//Disovle 시작
+	if (currFrame > frameCount - 3)
+	{
+		monster->GetMonster()->PauseAnimation(instance);
+
+		info[instance].DeathTime += 0.5f * Time::Get()->Delta();
+		color.g = info[instance].DeathTime;
+		
+		//화면에서 감춤
+		if (color.g >= Math::PI * 0.5f)
+		{
+			monster->Scale(instance, 0, 0, 0);
+			monster->Life(instance, false);
+		}
+	}
+
+	monster->GetMonster()->SetColor(instance, color);
 }
 
-void Monster1::Patrol(int index)
+void Monster1::CountTime(int instance)
 {
-	monsterInfo[index].search = false;
+	if (monster->GetActiveHitBox(instance) == true) return;
 
-	Vector3 mPosi = monsterInfo[index].position;
-	mPosi.y = 0.0f;
+	info[instance].InvincibleTime -= Time::Delta();
+
+	if (info[instance].InvincibleTime < 0.0f)
+	{
+		Color color = monster->GetMonster()->GetColor(instance);
+		color.r = 0.0f;
+		monster->GetMonster()->SetColor(instance, color);
+
+		info[instance].InvincibleTime = 0.0f;
+		monster->SetActiveHitBox(instance, true);
+	}
+}
+
+void Monster1::AttackCheck(int instance)
+{
+	if (info[instance].Attacked == false) return;
 	
-	float dis = D3DXVec3Length(&(monsterInfo[index].patrolPosition - mPosi));
+	PointLight& light = Lighting::Get()->GetPointLight(instance);
 
-	if (dis < 3.0f)
+	//처음 진입시
+	if (attackLight[instance].bActived == false)
 	{
-		monsterInfo[index].duration += Time::Delta();
+		attackLight[instance].bActived = true;
+		attackLight[instance].AttackPosition.y += 100.0f;
+		attackLight[instance].StartPosition = attackLight[instance].AttackPosition;
 
-		if (monsterInfo[index].idleTrigger == false)
-		{
-			monsterInfo[index].idleTrigger = true;
+		monster->SetActiveAttBox(instance, true);
 
-			SetIdle(index);
-		}
-
-		if (monsterInfo[index].duration > 10.0f)
-		{
-			float patX = Math::Random(mPosi.x - 30.0f, mPosi.x + 30.0f);
-			float patZ = Math::Random(mPosi.z - 30.0f, mPosi.z + 30.0f);
-			monsterInfo[index].patrolPosition = Vector3(patX, 0.0f, patZ);
-
-			Reset(index);
-		}
+		light.Position = playerPos;
+		light.Range = 1.5f;
 	}
-	else
+
+	//Udpate 내용
+	if (attackLight[instance].bActived == true)
 	{
-		if (monsterInfo[index].walkTrigger == false)
-		{
-			monsterInfo[index].walkTrigger = true;
+		attackLight[instance].AttackPosition.y -= 50.0f * Time::Delta();
+		attackLight[instance].Light->Add(attackLight[instance].AttackPosition);
 
-			SetWalk(index);
-		}
-
-		//이동
-		Vector3 dest = monsterInfo[index].patrolPosition - mPosi;
-		D3DXVec3Normalize(&dest, &dest);
-
-		monsterInfo[index].position += dest * 3.0f * Time::Delta();
-
-		//회전
-		float dot = D3DXVec3Dot(&monster->GetTransform(index)->Right(), &dest);
-		Vector3 temp;
-		D3DXVec3Cross(&temp, &monster->GetTransform(index)->Right(), &dest);
-		
-		float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
-		float theta = sign * acosf(dot);
-
-		Vector3 rot;
-		monster->GetTransform(index)->Rotation(&rot);
-		rot.y += theta / 30;
-
-		monster->GetTransform(index)->Rotation(rot);
+		monster->AttBox(instance)->Init->Position(attackLight[instance].AttackPosition);
 	}
-}
 
-void Monster1::Follow(int index)
-{
-	monsterInfo[index].search = true;
-
-	if (monsterInfo[index].isDown == true)
+	//플레이어에게 적중시
+	if (attackLight[instance].CheckHit == true)
 	{
-		//다운 step1
-		if (monsterInfo[index].downStartTrigger == false)
-		{
-			monsterInfo[index].downStartTrigger = true;
-			monsterInfo[index].duration = 0.0f;
-
-			SetDownStart(index);
-		}
-
-		//다운 step2
-		if (monster->GetCurrentClipIndex(index) == 5 && monsterInfo[index].downLoopTrigger == false)
-		{
-			int frameCount = monster->GetModel()->ClipByIndex(5)->FrameCount();
-			int currFrame = monster->GetCurrentFrameTweenMode(index);
-
-			if (currFrame == frameCount - 1)
-			{
-				if (monsterInfo[index].downLoopTrigger == false)
-				{
-					monsterInfo[index].downLoopTrigger = true;
-
-					SetDownLoop(index);
-				}
-			}
-		}
-
-		//다운 step3
-		if (monster->GetCurrentClipIndex(index) == 6 && monsterInfo[index].downEndTrigger == false)
-		{
-			monsterInfo[index].duration += Time::Delta();
-
-			if (monsterInfo[index].duration > 5.0f)
-			{
-				if (monsterInfo[index].downEndTrigger == false)
-				{
-					monsterInfo[index].downEndTrigger = true;
-
-					SetDownEnd(index);
-				}
-			}
-		}
-
-		//다운 end
-		if (monster->GetCurrentClipIndex(index) == 7)
-		{
-			int frameCount = monster->GetModel()->ClipByIndex(7)->FrameCount();
-			int currFrame = monster->GetCurrentFrameTweenMode(index);
-
-			if (currFrame == frameCount - 1)
-				Reset(index);
-
-		}
+		monster->SetActiveAttBox(instance, false);
+		attackLight[instance].CheckHit = false;
 	}
-	else if (distance < 5.0f) 
+
+	//시작점 - 현재위치
+	float distance = attackLight[instance].AttackPosition.y - light.Position.y;
+
+	//지면 충돌후 explosion particle
+	if (distance < 0.0f)
 	{
-		//공격
-		if (monsterInfo[index].atkTrigger == false)
-		{
-			Reset(index);
 
-			monsterInfo[index].atkTrigger = true;
-			monsterInfo[index].isAttack = true;
-			monsterInfo[index].activeColliderAtt = true;
-
-			SetAttack(index);
-		}
-		
-		//공격후 대기
-		if (monster->GetCurrentClipIndex(index) == 3 && monsterInfo[index].isAttack == true)
-		{
-			int frameCount = monster->GetModel()->ClipByIndex(3)->FrameCount();
-			int currFrame = monster->GetCurrentFrameTweenMode(index);
-			
-			//공격 종료
-			if (currFrame == frameCount - 1)
-			{
-				if (monsterInfo[index].waitTrigger == false)
-				{
-					monsterInfo[index].waitTrigger = true;
-					monsterInfo[index].activeColliderAtt = false;
-
-					SetWait(index);
-				}
-			}
-		}
-
-		//대기 종료
-		if (monster->GetCurrentClipIndex(index) == 4)
-		{
-			monsterInfo[index].duration += Time::Delta();
-			
-			if (monsterInfo[index].duration > 3.0f)
-				Reset(index);
-		}
+		attackLight[instance].Explosion->Add(light.Position);
+		attackLight[instance].time += Time::Delta();
 	}
-	else
+
+	//공격 종료 시점
+	if (attackLight[instance].time > 1.0f)
 	{
-		//쫓아오기
-		if (monsterInfo[index].runTrigger == false)
-		{
-			Reset(index);
+		monster->SetActiveAttBox(instance, false);
+		attackLight[instance].CheckHit = false;
+		attackLight[instance].bActived = false;
+		attackLight[instance].time = 0.0f;
+		info[instance].Attacked = false;
 
-			monsterInfo[index].runTrigger = true;
-
-			SetRun(index);
-		}
-
-
-		Vector3 pPosi = playerPosition;
-		pPosi.y = 0.0f;
-		Vector3 mPosi = monsterInfo[index].position;
-		mPosi.y = 0.0f;
-
-		//이동
-		Vector3 dest = pPosi - mPosi;
-		D3DXVec3Normalize(&dest, &dest);
-
-		monsterInfo[index].position += dest * 5.0f * Time::Delta();
-
-		//회전
-		float dot = D3DXVec3Dot(&monster->GetTransform(index)->Right(), &dest);
-		Vector3 temp;
-		D3DXVec3Cross(&temp, &monster->GetTransform(index)->Right(), &dest);
-
-		float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
-		float theta = sign * acosf(dot);
-
-		Vector3 rot;
-		monster->GetTransform(index)->Rotation(&rot);
-		rot.y += theta / 30;
-
-		monster->GetTransform(index)->Rotation(rot);
+		light.Range = 0.0f;
 	}
 }
 
-void Monster1::SetIdle(int index)
+void Monster1::AttackUpdate()
 {
-	//std::cout << "Montser1 Idle" << std::endl;
-	monster->PlayTweenMode(index, 0, 1.0f);
-}
-
-void Monster1::SetWalk(int index)
-{
-	//std::cout << "Montser1 Walk" << std::endl;
-	monster->PlayTweenMode(index, 1, 1.0f);
-}
-
-void Monster1::SetRun(int index)
-{
-	//std::cout << "Montser1 Run" << std::endl;
-	monster->PlayTweenMode(index, 2, 1.0f);
-}
-
-void Monster1::SetAttack(int index)
-{
-	//std::cout << "Montser1 Atk" << std::endl;
-	monster->PlayNormalMode(index, 3, 1.0f);
-}
-
-void Monster1::SetWait(int index)
-{
-	//std::cout << "Montser1 Wait" << std::endl;
-	monster->PlayNormalMode(index, 4, 0.5f);
-}
-
-void Monster1::SetDownStart(int index)
-{
-	//std::cout << "Montser1 DownStart" << std::endl;
-	monster->PlayNormalMode(index, 5, 1.0f);
-}
-
-void Monster1::SetDownLoop(int index)
-{
-	//std::cout << "Montser1 DownLoop" << std::endl;
-	monster->PlayNormalMode(index, 6, 1.0f);
-}
-
-void Monster1::SetDownEnd(int index)
-{
-	//std::cout << "Montser1 DownEnd" << std::endl;
-	monster->PlayNormalMode(index, 7, 1.0f);
-}
-
-void Monster1::SetDeath(int index)
-{
-	//std::cout << "Montser1 Death" << std::endl;
-	monster->PlayTweenMode(index, 8, 1.0f);
-}
-
-void Monster1::CreateColliders()
-{
-	for (int index = 0; index < MONSTER1_NUM; index++)
+	for (int i = 0; i < num; i++)
 	{
-		monsterInfo[index].CollidersHit = new ColliderObject();
-
-		monsterInfo[index].CollidersHit->Init = new Transform();
-		monsterInfo[index].CollidersHit->Init->Position(0.0f, 0.0f, 0.0f);
-		monsterInfo[index].CollidersHit->Init->Scale(3, 5, 3);
-
-		monsterInfo[index].CollidersHit->Transform = new Transform();
-		monsterInfo[index].CollidersHit->Collider = new Collider(monsterInfo[index].CollidersHit->Transform, monsterInfo[index].CollidersHit->Init);
-
-		///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-		monsterInfo[index].CollidersAtt = new ColliderObject();
-
-		monsterInfo[index].CollidersAtt->Init = new Transform();
-		monsterInfo[index].CollidersAtt->Init->Position(0, 0, 0);
-		monsterInfo[index].CollidersAtt->Init->Scale(15, 15, 15);
-
-		monsterInfo[index].CollidersAtt->Transform = new Transform();
-		monsterInfo[index].CollidersAtt->Collider = new Collider(monsterInfo[index].CollidersAtt->Transform, monsterInfo[index].CollidersAtt->Init);
+		attackLight[i].Light->Update();
+		attackLight[i].Explosion->Update();
 	}
 }
 
-void Monster1::CollidersUpdate()
+bool Monster1::CheckRestrictArea(Vector3 position)
 {
-	Matrix worlds[MAX_MODEL_TRANSFORMS];
-	for (UINT index = 0; index < MONSTER1_NUM; index++)
+	Color restricted = Context::Get()->MapRestrictArea();
+	Vector2 mapSize = Context::Get()->MapSize();
+
+	//restriected가  UV였는데 WPosition으로 변환, z축은 뒤집어야함
+	restricted.r = (mapSize.x * restricted.r) - (mapSize.x * 0.5f);		//좌
+	restricted.g = (mapSize.x * restricted.g) - (mapSize.x * 0.5f);		//우
+	restricted.b = -((mapSize.y * restricted.b) - (mapSize.y * 0.5f));	//상
+	restricted.a = -((mapSize.y * restricted.a) - (mapSize.y * 0.5f));	//하
+
+	bool b = true;
+	b &= position.x > restricted.r;
+	b &= position.x < restricted.g;
+	b &= position.z < restricted.b;
+	b &= position.z > restricted.a;
+
+	return b;
+}
+
+void Monster1::AttackRender()
+{
+	for (int i = 0; i < num; i++)
 	{
-		if (monsterInfo[index].hp < 0) continue;
-
-		monster->GetAttachTransforms(index, worlds);
-
-		Vector3 posi = monsterInfo[index].position;
-		posi.y += 3.0f;
-		Vector3 rot = monster->GetTransform(index)->GetRotation();
-
-		monsterInfo[index].CollidersHit->Collider->GetTransform()->Position(posi);
-		monsterInfo[index].CollidersHit->Collider->GetTransform()->Rotation(rot);
-		monsterInfo[index].CollidersHit->Collider->Update();
-
-		monsterInfo[index].CollidersAtt->Collider->GetTransform()->World(worlds[18]);
-		monsterInfo[index].CollidersAtt->Collider->Update();
+		attackLight[i].Explosion->Render();
+		attackLight[i].Light->Render();
 	}
 }
 
-void Monster1::CollidersRender()
+Vector3 Monster1::GetPosition(UINT instance)
 {
-	if (showCollider == false) return;
+	Vector3 pos;
+	monster->Position(instance, &pos);
 
-	for (UINT index = 0; index < MONSTER1_NUM; index++)
-	{
-		if (monsterInfo[index].hp < 0) continue;
-
-		if (monsterInfo[index].activeColliderHit == true)
-			monsterInfo[index].CollidersHit->Collider->Render(Color(1, 0.5, 0.5, 1));
-		else
-			monsterInfo[index].CollidersHit->Collider->Render(Color(1, 0, 0, 1));
-		
-		if (monsterInfo[index].activeColliderAtt == true)
-			monsterInfo[index].CollidersAtt->Collider->Render(Color(1, 0, 0, 1));
-		else
-			monsterInfo[index].CollidersAtt->Collider->Render(Color(1, 0.5, 0.5, 1));
-	}
+	return pos;
 }
 
-//void Monster1::CreateImage()
-//{
-//	hpBarTest = new Billboard(billShader, L"Red.png");
-//	
-//	for (int i = 0; i < MONSTER1_NUM; i++)
-//	{
-//		Transform* transform = hpBarTest->AddTransform();
-//		Vector3 posi = monsterInfo[i].position;
-//		posi.y += 11.0f;
-//		transform->Position(posi);
-//		transform->Scale(5.0f, 0.8f, 0.0f);
-//	}
-//
-//	hpBarTest->Pass(3);
-//	///////////////////////////////////////////////////////////
-//
-//	hpTexture = new Texture(L"Red.png");
-//
-//	///////////////////////////////////////////////////////////
-//
-//	/*hpTexture = new Texture(L"Red.png");
-//
-//	hpBar = new Render2D();
-//	hpBar->GetTransform()->Scale(208.0f, 13.0f, 1);
-//	hpBar->GetTransform()->Position(490.0f, 167.0f, 0);
-//	
-//	hpBuffer = new TextureBuffer(hpTexture->GetTexture());
-//
-//	textureShader->AsSRV("Input")->SetResource(hpBuffer->SRV());
-//	textureShader->AsUAV("Output")->SetUnorderedAccessView(hpBuffer->UAV());
-//
-//
-//	UINT width = hpBuffer->Width();
-//	UINT height = hpBuffer->Height();
-//	UINT arraySize = hpBuffer->ArraySize();
-//
-//	float x = ((float)width / 32.0f) < 1.0f ? 1.0f : ((float)width / 32.0f);
-//	float y = ((float)height / 32.0f) < 1.0f ? 1.0f : ((float)height / 32.0f);
-//
-//	textureShader->Dispatch(0, 0, (UINT)ceilf(x), (UINT)ceilf(y), arraySize);
-//
-//	hpBar->SRV(hpBuffer->OutputSRV());*/
-//}
-//
-//void Monster1::ImagePosition()
-//{
-//	for (int i = 0; i < MONSTER1_NUM; i++)
-//	{
-//		Vector3 posi = monsterInfo[i].position;
-//		posi.y += 11.0f;
-//
-//		//hpBarTest->GetTransform(i)->Position(posi);
-//		hpBarTest->GetTransform()->Position(posi);
-//	}
-//}
-//
-//void Monster1::ImageUpdate()
-//{
-//	ImagePosition();
-//
-//	hpBarTest->Update();
-//}
-//
-//void Monster1::ImageRender()
-//{
-//	hpBarTest->Render();
-//}
-
-void Monster1::Reset(int index)
+ColliderObject * Monster1::HitBox(int instance)
 {
-	//std::cout << "Monster1 Reset" << std::endl;
-	monsterInfo[index].isAttack = false;
-	monsterInfo[index].isDown = false;
+	return monster->HitBox(instance);
+}
 
-	monsterInfo[index].idleTrigger = false;
-	monsterInfo[index].walkTrigger = false;
-	monsterInfo[index].runTrigger = false;
-	monsterInfo[index].atkTrigger = false;
-	monsterInfo[index].waitTrigger = false;
-	monsterInfo[index].downStartTrigger = false;
-	monsterInfo[index].downLoopTrigger = false;
-	monsterInfo[index].downEndTrigger = false;
-	monsterInfo[index].deathTrigger = false;
+ColliderObject * Monster1::AttBox(int instance)
+{
+	return monster->AttBox(instance);
+}
 
-	monsterInfo[index].duration = 0.0f;
+void Monster1::GetDamage(int instance, float damage)
+{
+	monster->SetActiveHitBox(instance, false);
 
-	monsterInfo[index].activeColliderAtt = false;
+	Color color = monster->GetMonster()->GetColor(instance);
+	color.r = 1.0f;
+	monster->GetMonster()->SetColor(instance, color);
+
+	info[instance].InvincibleTime = maxInvincibleTime;
+	info[instance].Hp -= damage;
+}
+
+bool Monster1::GetActiveAttBox(int instance)
+{
+	return monster->GetActiveAttBox(instance);
+}
+
+bool Monster1::GetActiveHitBox(int instance)
+{
+	return monster->GetActiveHitBox(instance);
+}
+
+void Monster1::SetKnockback(int instance, bool bKnockback)
+{
+	if (bKnockback == true)
+		behavior[instance] = this->bKnockback;
+}
+
+void Monster1::CheckHit(int instance, bool result)
+{
+	attackLight[instance].CheckHit = result;
 }

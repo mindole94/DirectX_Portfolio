@@ -43,11 +43,14 @@ public:
 
 	int GetCurrentClipIndex(int instance) { return tweenDesc[instance].Curr.Clip; }
 
-	void SetPlayFrame(int instance, bool value) { modelPlayMode[instance].isPlay = value; }
-	void SetPauseFrame(int instance, bool value) { modelPlayMode[instance].isPause = value; }
-	void SetStopFrame(int instance, bool value) { modelPlayMode[instance].isStop = value; }
-	void SetModelRender(int instance, bool value) { modelPlayMode[instance].bRender = value; }
+	//void SetPlayFrame(int instance, bool value) { modelPlayMode[instance].isPlay = value; }
+	//void SetPauseFrame(int instance, bool value) { modelPlayMode[instance].isPause = value; }
+	//void SetStopFrame(int instance, bool value) { modelPlayMode[instance].isStop = value; }
+	void PlayAnimation(int instance);
+	void PauseAnimation(int instance);
+	void StopAnimation(int instance);
 
+	void SetModelRender(int instance, bool value) { modelPlayMode[instance].bRender = value; }
 	bool GetModelRender(int instance) { return modelPlayMode[instance].bRender; }
 
 	void ResetFrame(UINT instance);
@@ -58,6 +61,9 @@ public:
 
 	Matrix GetAttachTransform(UINT index, UINT boneIndex);
 	void GetAttachTransforms(UINT index, Matrix* outResult);
+
+	Color GetColor(UINT instance) { return colors[instance]; }
+	void SetColor(UINT instance, Color color) { colors[instance] = color; }
 
 private:
 	void CreateTexture();
@@ -103,7 +109,7 @@ private:
 		float Speed = 1.0f;
 
 		Vector2 Padding;
-	}; //keyframeDesc;
+	};
 
 	struct TweenDesc
 	{
@@ -146,7 +152,7 @@ private:
 	Matrix worlds[MAX_MODEL_INSTANCE];
 	VertexBuffer* instanceBuffer;
 
-	Color colors[MAX_MODEL_INSTANCE];
+	Color colors[MAX_MODEL_INSTANCE];//r : color, g : bool Hit,
 	VertexBuffer* instanceColorBuffer;
 
 private:
@@ -155,9 +161,9 @@ private:
 
 	struct ModelPlayMode
 	{
-		bool isPlay = true;
-		bool isPause = false;
-		bool isStop = false;
+		bool bPlay = true;
+		bool bPause = false;
+		bool bStop = false;
 		bool bRender = true;
 	} modelPlayMode[MAX_MODEL_INSTANCE];
 

@@ -4,33 +4,59 @@
     <ClInclude Include="Main.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Player.h">
-      <Filter>Character</Filter>
+      <Filter>Characters</Filter>
     </ClInclude>
     <ClInclude Include="Game.h" />
     <ClInclude Include="Monster1.h">
-      <Filter>Character</Filter>
+      <Filter>Characters</Filter>
     </ClInclude>
     <ClInclude Include="Monster2.h">
-      <Filter>Character</Filter>
+      <Filter>Characters</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerModel.h">
+      <Filter>Models</Filter>
+    </ClInclude>
+    <ClInclude Include="MonsterModel.h">
+      <Filter>Models</Filter>
+    </ClInclude>
+    <ClInclude Include="Map.h">
+      <Filter>Map</Filter>
+    </ClInclude>
+    <ClInclude Include="Test.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Player.cpp">
-      <Filter>Character</Filter>
+      <Filter>Characters</Filter>
     </ClCompile>
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Monster1.cpp">
-      <Filter>Character</Filter>
+      <Filter>Characters</Filter>
     </ClCompile>
     <ClCompile Include="Monster2.cpp">
-      <Filter>Character</Filter>
+      <Filter>Characters</Filter>
     </ClCompile>
+    <ClCompile Include="PlayerModel.cpp">
+      <Filter>Models</Filter>
+    </ClCompile>
+    <ClCompile Include="MonsterModel.cpp">
+      <Filter>Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Map.cpp">
+      <Filter>Map</Filter>
+    </ClCompile>
+    <ClCompile Include="Test.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Character">
+    <Filter Include="Models">
+      <UniqueIdentifier>{f1b7857f-a3a0-457f-909a-09630bb5ea7e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Characters">
       <UniqueIdentifier>{946667b7-f2d7-4ef2-a40a-bb56b5173a09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Map">
+      <UniqueIdentifier>{e488c74a-858e-4acd-a14d-0713331b7d89}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

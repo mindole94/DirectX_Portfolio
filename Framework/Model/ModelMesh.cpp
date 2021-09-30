@@ -20,7 +20,6 @@ ModelMesh::ModelMesh()
 
 ModelMesh::~ModelMesh()
 {
-	//SafeDelete(transform);
 	SafeDelete(perFrame);
 
 	SafeDeleteArray(vertices);
@@ -54,9 +53,6 @@ void ModelMesh::SetShader(Shader * shader)
 {
 	this->shader = shader;
 
-	//SafeDelete(transform);
-	//transform = new Transform(shader);
-
 	SafeDelete(perFrame);
 	perFrame = new PerFrame(shader);
 
@@ -72,31 +68,10 @@ void ModelMesh::Update()
 	boneDesc.Index = boneIndex;
 
 	perFrame->Update();
-	//transform->Update();
-
+	
 	for (ModelMeshPart* part : meshParts)
 		part->Update();
 }
-
-//void ModelMesh::Render()
-//{
-//	boneBuffer->Render();
-//	sBoneBuffer->SetConstantBuffer(boneBuffer->Buffer());
-//
-//	perFrame->Render();
-//	transform->Render();
-//	material->Render();
-//	
-//	vertexBuffer->Render();
-//	indexBuffer->Render();
-//
-//	if (transformsSRV != NULL)
-//		sTransformsSRV->SetResource(transformsSRV);
-//
-//	D3D::GetDC()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-//	
-//	shader->DrawIndexed(0, pass, indexCount);
-//}
 
 void ModelMesh::Render(UINT instanceCount)
 {
@@ -116,16 +91,6 @@ void ModelMesh::Render(UINT instanceCount)
 	for (ModelMeshPart* part : meshParts)
 		part->Render(instanceCount);
 }
-
-//void ModelMesh::Transforms(Matrix * transforms)
-//{
-//	memcpy(boneDesc.Transforms, transforms, sizeof(Matrix) * MAX_MODEL_TRANSFORMS);
-//}
-//
-//void ModelMesh::SetTransform(Transform * transform)
-//{
-//	this->transform->Set(transform);
-//}
 
 void ModelMesh::TransformsSRV(ID3D11ShaderResourceView * srv)
 {

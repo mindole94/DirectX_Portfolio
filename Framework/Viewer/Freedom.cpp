@@ -14,104 +14,108 @@ Freedom::~Freedom()
 
 void Freedom::Update()
 {
-	Vector3 r = Right();//x
-	Vector3 f;
-	D3DXVec3Cross(&f, &r, &Vector3(0, 1, 0));
-
-	Vector3 val = Vector3(0, 0, 0);
-
-	if (Mouse::Get()->Press(1) == true)
-		val = Mouse::Get()->GetMoveValue();//이전 프레임부터 현재 프레임까지 마우스가 이동한 만큼의 차를 알려줌
-
-	float delta = Mouse::Get()->GetMoveValue().z;
-	if (fabs(delta) >= WHEEL_DELTA)
+	if (bFreeMode == false)
 	{
-		float delta_zoom = 1.0f - fabs(delta) / WHEEL_DELTA / 50.0f;
+		Vector3 r = Right();
+		Vector3 f;
+		D3DXVec3Cross(&f, &r, &Vector3(0, 1, 0));
 
-		if (delta < 0)
-			radian /= delta_zoom;
-		else
-			radian *= delta_zoom;
+		Vector3 val = Vector3(0, 0, 0);
+
+		if (Mouse::Get()->Press(1) == true)
+			val = Mouse::Get()->GetMoveValue();//이전 프레임부터 현재 프레임까지 마우스가 이동한 만큼의 차를 알려줌
+
+		float delta = Mouse::Get()->GetMoveValue().z;
+		if (fabs(delta) >= WHEEL_DELTA)
+		{
+			float delta_zoom = 1.0f - fabs(delta) / WHEEL_DELTA / 50.0f;
+
+			if (delta < 0)
+				zoom /= delta_zoom;
+			else
+				zoom *= delta_zoom;
+		}
+
+		zoom = Math::Clamp(zoom, 10.0f, 50.0f);
+		//height = (zoom - 5.0f) * 0.5f;
+		height = zoom * 0.5f;
+
+		Vector3 R;
+		Rotation(&R);
+
+		R.x = R.x + val.y * rotation * Time::Delta();
+		//x축 회전 : 위아래로 움직임
+		R.y = R.y + val.x * rotation * Time::Delta();
+		//y축 회전 : 양옆으로 움직임
+		R.z = 0.0f;
+
+		Rotation(R);
+
+		theta = R.y;
+		phi = R.x;
+
+		Vector3 P;
+		Position(&P);
+		CameraShake();
+
+		P.x = at.x - zoom * sinf(theta) * cosf(phi) * 2.0f;
+		P.y = at.y + zoom * sinf(phi) + height * 2.0f;
+		P.z = at.z - zoom * cosf(theta) * cosf(phi) * 2.0f;
+
+		//P.y = Math::Clamp(P.y, at.y + 5.0f, 1000.0f);
+		P.y = Math::Clamp(P.y, at.y + 5.0f, 300.0f);//카메라 최대 최소 높이
+		position = P;
+
+		Position(position);
 	}
-	
-	radian = Math::Clamp(radian, 10.0f, 300.0f);
-	height = (radian - 10.0f) / 2.0f;
+	else
+	{
+		if (Mouse::Get()->Press(1) == false) return;
 
-	Vector3 R;
-	Rotation(&R);
+		Vector3 f = Forward();
+		Vector3 u = Up();
+		Vector3 r = Right();
 
-	R.x = R.x + val.y * rotation * Time::Delta();
-	//x축 회전 : 위아래로 움직임
-	R.y = R.y + val.x * rotation * Time::Delta();
-	//y축 회전 : 양옆으로 움직임
-	R.z = 0.0f;
+		//Move
+		{
+			Vector3 P;
+			float speed = 1.0f;
+			Position(&P);
 
-	Rotation(R);
+			if (Keyboard::Get()->Press(VK_SHIFT))
+				speed *= 10.0f;
 
-	theta = R.y;
-	phi = R.x;
-	///radian -= 0.5f * val.z * move * Time::Delta();
-	
-	Vector3 P;
-	Position(&P);
-	CameraShake();
-	P.x = at.x - radian * sinf(theta) * cosf(phi);
-	P.y = at.y + radian * sinf(phi) + height;
-	P.z = at.z - radian * cosf(theta) * cosf(phi);
+			if (Keyboard::Get()->Press('W'))
+				P = P + f * move * Time::Delta() * speed;
+			if (Keyboard::Get()->Press('S'))
+				P = P - f * move * Time::Delta() * speed;
 
-	P.y = Math::Clamp(P.y, 5.0f, 1000.0f);
-	position = P;
-	//P.x = (at.x - radian * sinf(theta)) - (radian - radian * cosf(phi));
+			if (Keyboard::Get()->Press('D'))
+				P = P + r * move * Time::Delta() * speed;
+			if (Keyboard::Get()->Press('A'))
+				P = P - r * move * Time::Delta() * speed;
 
-	Position(P);
+			if (Keyboard::Get()->Press('E'))
+				P = P + u * move * Time::Delta() * speed;
+			if (Keyboard::Get()->Press('Q'))
+				P = P - u * move * Time::Delta() * speed;
 
-	////////////////////////////////////////////////
+			Position(P);
+		}
 
-	//if (Mouse::Get()->Press(1) == false) return;
+		//Rotation
+		{
+			Vector3 R;
+			Rotation(&R);
 
-	//Vector3 f = Forward();
-	//Vector3 u = Up();
-	//Vector3 r = Right();
+			Vector3 val = Mouse::Get()->GetMoveValue();
+			R.x = R.x + val.y * rotation * Time::Delta();
+			R.y = R.y + val.x * rotation * Time::Delta();
+			R.z = 0.0f;
 
-	////Vector3 f = Vector3(0, 0, 1);
-	////Vector3 u = Vector3(0, 1, 0);
-	////Vector3 r = Vector3(1, 0, 0);
-
-	////Move
-	//{
-	//	Vector3 P;
-	//	Position(&P);
-
-	//	if (Keyboard::Get()->Press('W'))
-	//		P = P + f * move * Time::Delta();
-	//	if (Keyboard::Get()->Press('S'))
-	//		P = P - f * move * Time::Delta();
-
-	//	if (Keyboard::Get()->Press('D'))
-	//		P = P + r * move * Time::Delta();
-	//	if (Keyboard::Get()->Press('A'))
-	//		P = P - r * move * Time::Delta();
-
-	//	if (Keyboard::Get()->Press('E'))
-	//		P = P + u * move * Time::Delta();
-	//	if (Keyboard::Get()->Press('Q'))
-	//		P = P - u * move * Time::Delta();
-
-	//	Position(P);
-	//}
-
-	////Rotation
-	//{
-	//	Vector3 R;
-	//	Rotation(&R);
-
-	//	Vector3 val = Mouse::Get()->GetMoveValue();
-	//	R.x = R.x + val.y * rotation * Time::Delta();
-	//	R.y = R.y + val.x * rotation * Time::Delta();
-	//	R.z = 0.0f;
-
-	//	Rotation(R);
-	//}
+			Rotation(R);
+		}
+	}
 }
 
 void Freedom::Speed(float move, float rotation)
@@ -120,9 +124,9 @@ void Freedom::Speed(float move, float rotation)
 	this->rotation = rotation;
 }
 
-void Freedom::SetShake(float totalTime, float shakeScale)
+void Freedom::SetShake(float shakeTime, float shakeScale)
 {
-	this->totalShakeTime += totalTime;
+	this->shakeTime = shakeTime;
 	this->shakeScale += shakeScale;
 	shakeForce = shakeScale;
 
@@ -133,12 +137,11 @@ void Freedom::CameraShake()
 {
 	if (cameraShake == false) return;
 	
-	shakeTime += Time::Delta();
-	if (shakeTime > totalShakeTime)
+	shakeTime -= Time::Delta();
+	if (shakeTime < 0.0f)
 	{
 		cameraShake = false;
 		shakeTime = 0.0f;
-		totalShakeTime = 0.0f;
 		shakeScale = 0.0f;
 		shakeForce = 0.0f;
 	}

@@ -16,6 +16,7 @@ public:
 	virtual void Render();
 
 	Transform* GetTransform() { return transform; }
+	PerFrame* GetPerFrame() { return perFrame; }
 
 private:
 	void Initialize();

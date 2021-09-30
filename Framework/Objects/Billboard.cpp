@@ -27,6 +27,7 @@ void Billboard::Add(Vector3 & position, Vector2 & scale, UINT mapIndex)
 	{
 		position, scale, mapIndex
 	};
+
 	vertices.push_back(vertex);
 }
 
@@ -53,4 +54,14 @@ void Billboard::Render()
 
 	sDiffuseMap->SetResource(textureArray->SRV());
 	shader->Draw(0, Pass(), vertexCount);
+}
+
+void Billboard::PreRender_Reflection()
+{
+
+}
+
+void Billboard::GetCullingPlanes(Plane * planes)
+{
+	memcpy(this->planes, planes, sizeof(Plane) * 6);
 }

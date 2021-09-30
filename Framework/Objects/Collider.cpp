@@ -55,7 +55,7 @@ void Collider::Render(Color color)
 	for (UINT i = 0; i < 8; i++)
 		D3DXVec3TransformCoord(&dest[i], &lines[i], &world);
 
-
+	Color a = Color(1, 0, 0, 1);
 	//Front
 	DebugLine::Get()->RenderLine(dest[0], dest[1], color);
 	DebugLine::Get()->RenderLine(dest[1], dest[3], color);
@@ -78,7 +78,7 @@ void Collider::Render(Color color)
 	top = (dest[1] + dest[3] + dest[5] + dest[7]) / 4;
 	//bottom = top;
 	Vector3 up = GetTransform()->Up();
-	top += 10.0f * up;
+	//top += 1.0f * up;
 	center = (top + bottom) / 2;
 }
 

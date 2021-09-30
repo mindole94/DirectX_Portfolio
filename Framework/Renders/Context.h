@@ -29,6 +29,16 @@ public:
 	Vector3& Direction() { return direction; }
 	Vector3& Position() { return position; }
 
+	Plane* Culling() { return culling; }
+	Plane& Culling(UINT index) { return culling[index]; }
+	Plane& Clipping() { return clipping; }
+
+	Color& MapRestrictArea() { return mapRestrictArea; }
+	Vector2& MapSize() { return mapSize; }
+
+	bool GetOnOff() { return onOff; }
+	void SetOnOff(bool b) { this->onOff = b; }
+
 private:
 	static Context* instance;
 
@@ -41,4 +51,12 @@ private:
 	Color specular = Color(1, 1, 1, 1);
 	Vector3 direction = Vector3(-1, -1, 1);
 	Vector3 position = Vector3(0, 0, 0);
+
+	Plane culling[4];
+	Plane clipping;
+
+	Color mapRestrictArea = Color(0, 0, 0, 0);
+	Vector2 mapSize = Vector2(0,0);
+
+	bool onOff = false;
 };

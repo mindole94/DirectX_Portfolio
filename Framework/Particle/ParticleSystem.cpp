@@ -15,6 +15,8 @@ ParticleSystem::ParticleSystem(wstring file)
 	Reset();
 
 	scale = data.MaxEndSize;
+	gravity = data.Gravity;
+	color = data.MaxColor;
 }
 
 ParticleSystem::~ParticleSystem()
@@ -129,10 +131,10 @@ void ParticleSystem::Update()
 
 	data.MaxEndSize = scale;
 
-	desc.MinColor = data.MinColor;
-	desc.MaxColor = data.MaxColor;
+	desc.MinColor = color;
+	desc.MaxColor = color;
 
-	desc.Gravity = data.Gravity;
+	desc.Gravity = gravity;
 	desc.EndVelocity = data.EndVelocity;
 
 	desc.RotateSpeed = Vector2(data.MinRotateSpeed, data.MaxRotateSpeed);

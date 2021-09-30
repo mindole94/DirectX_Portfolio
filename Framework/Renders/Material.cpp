@@ -20,7 +20,6 @@ void Material::Initialize()
 	diffuseMap = NULL;
 	specularMap = NULL;
 	normalMap = NULL;
-	opacityMap = NULL;
 
 	buffer = new ConstantBuffer(&colorDesc, sizeof(ColorDesc));
 }
@@ -30,7 +29,6 @@ Material::~Material()
 	SafeDelete(diffuseMap);
 	SafeDelete(specularMap);
 	SafeDelete(normalMap);
-	SafeDelete(opacityMap);
 
 	SafeDelete(buffer);
 }

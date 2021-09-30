@@ -52,6 +52,8 @@ using namespace std;
 #define SafeDelete(p){ if(p){ delete (p); (p) = NULL; } }
 #define SafeDeleteArray(p){ if(p){ delete [] (p); (p) = NULL; } }
 
+#define TimeRateCheck(p) { if(p < 1.0f / 30.0f) return; else p = 0.0f; }
+
 typedef D3DXVECTOR2 Vector2;
 typedef D3DXVECTOR3 Vector3;
 typedef D3DXVECTOR4 Vector4;
@@ -110,16 +112,27 @@ typedef D3DXPLANE Plane;
 #include "Model/ModelAnimator.h"
 
 #include "Environment/Terrain.h"
+#include "Environment/TerrainLOD.h"
 #include "Environment/CubeSky.h"
 #include "Environment/Rain.h"
 #include "Environment/Snow.h"
+#include "Environment/Sky.h"
+#include "Environment/Water.h"
+#include "Environment/SeaLOD.h"
 
 #include "Objects/Collider.h"
 #include "Objects/Billboard.h"
 #include "Objects/PostEffect.h"
 #include "Objects/Projector.h"
+#include "Objects/Frustum.h"
+#include "Objects/EnvCubeMap.h"
+#include "Objects/Reflection.h"
+#include "Objects/Refraction.h"
 #include "Objects/Shadow.h"
 
 #include "Particle/ParticleData.h"
 #include "Particle/ParticleSystem.h"
 #include "Particle/TrailSystem.h"
+
+#include "Objects/Reflection2.h"
+#include "Objects/Refraction2.h"

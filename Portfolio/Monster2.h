@@ -1,113 +1,86 @@
 #pragma once
 
-#define MONSTER2_NUM 10
-
 class Monster2
 {
 public:
 	Monster2(Shader* shader);
+	Monster2(Shader* shader, int num);
 	~Monster2();
 
 	void Update();
 	void PreRender();
+	void PreRender_Reflection();
 	void Render();
 
-	Vector3 GetPosition(int index) { return monsterInfo[index].position; }
+private:
+	void Idle(int instance, float distance);
+	void Battle(int instance, float distance);
+	void Death(int instance);
 
-	void SetHeight(int index, float y) { monsterInfo[index].height = y; }
+	void CountTime(int instance);
 
-	auto GetColliderHit(int index) -> ColliderObject* { return monsterInfo[index].CollidersHit; }
-	auto GetColliderAtt(int index) -> ColliderObject* { return monsterInfo[index].CollidersAtt; }
+	bool CheckRestrictArea(Vector3 position);//위치제약 체크
 
-	void GetPlayerPosition(Vector3 position) { playerPosition = position; }
+public:
+	void PlayerPosition(Vector3 pos) { playerPos = pos; }
+	void PlayerForward(Vector3 forward) { playerForward = forward; }
 
-	void Damage(int index, int damageType, int damage, bool fireball);
+	Vector3 GetPosition(int instance);
+	void SetHeight(UINT instance, float height) { this->height[instance] = height; }
 
-	bool ActiveColliderHit(int index) { return monsterInfo[index].activeColliderHit; }
-	bool ActiveColliderAtt(int index) { return monsterInfo[index].activeColliderAtt; }
+	ColliderObject* HitBox(int instance);
+	ColliderObject* AttBox(int instance);
+	
 
-	void SetActiveColliderHit(int index, bool be) { monsterInfo[index].activeColliderAtt = be; }
+	void GetDamage(int instance, float damage);
+	bool GetActiveAttBox(int instance);
+	bool GetActiveHitBox(int instance);
 
-	void ShowCollider(bool show) { showCollider = show; }
+	void SetKnockback(int instance, bool bKnockback);
+
+	int Num() { return num; }
 
 private:
-	void CreateMonster();
-	void Patrol(int index);
-	void Follow(int index);
+	class MonsterModel* monster;
 
-private:
-	void SetIdle(int index);
-	void SetWalk(int index);
-	void SetRun(int index);
-	void SetAttack(int index);
-	void SetWait(int index);
-	void SetDownStart(int index);
-	void SetDownLoop(int index);
-	void SetDownEnd(int index);
-	void SetDeath(int index);
-
-private:
-	void CreateColliders();
-	void CollidersUpdate();
-	void CollidersRender();
-
-private:
-	void ParticleUpdate();
-	void ParticleRender();
-
-private:
-	void Reset(int index);
-
-private:
 	Shader* shader;
 
-	ModelAnimator* monster = NULL;
-
 private:
-	struct MontserInfo
+	int num = 5;
+
+	struct Monster2Info
 	{
-		Vector3 position;
-		Vector3 patrolPosition;//패트롤 목표
-		Vector3 scale;
-		Vector3 galaxyPosition;
-		Vector3 playerPosition;
-		float height;
+		float Hp = 5000.0f;
+		float MaxHp = 5000.0f;
 
-		bool search;//탐색 on/off
+		float IdleTime = 0.0f;
 
-		int hp = 5000;
-		int maxHp = 5000;
-		int def = 100;
+		Vector3 PatrolPos = Vector3(0.0f, 0.0f, 0.0f);
 
-		ColliderObject* CollidersHit;//피격박스
-		ColliderObject* CollidersAtt;//공격박스
-		ParticleSystem* GalaxyParticle = NULL;
-		ParticleSystem* DeathParticle = NULL;
+		bool Search = false;
+		float InvincibleTime = 0.0f;
+		float DeathTime = 0.0f;
 
-		bool activeColliderHit = true;
-		bool activeColliderAtt = false;
+		bool Attacked = false;
+	};
 
-		bool bAttack = false;
-		bool isDown = false;
+	enum Behavior
+	{
+		bIdle, bPatrol, bChase, bAttack, bWait, bKnockback, bDeath, Count
+	};
+	Behavior* behavior;
 
-		bool idleTrigger = false;
-		bool walkTrigger = false;
-		bool runTrigger = false;
-		bool atkTrigger = false;
-		bool waitTrigger = false;
-		bool downStartTrigger = false;
-		bool downLoopTrigger = false;
-		bool downEndTrigger = false;
-		bool deathTrigger = false;
+	Vector3 playerPos = Vector3(0.0f, 0.0f, 0.0f);
+	Vector3 playerForward = Vector3(0.0f, 0.0f, 0.0f);
 
-		float duration = 0.0f;
-		float debuffTime = 0.0f;
-		float invincibleTime = 0.0f;
-	}monsterInfo[MONSTER2_NUM];
+	const float maxIdleTime = 5.0f;
+	const float patrolDist = 50.0f;
+	const float maxInvincibleTime = 1.0f;
+	const float rotRatio = 0.05f;
+	const float speed = 5.0f;
 
-	Vector3 playerPosition = Vector3(0.0f, 0.0f, 0.0f);
-	float distance = 0.0f;
 
-	bool showCollider = true;
+	float* height;
 
+	Monster2Info* info;
 };

@@ -9,11 +9,14 @@ public:
 	void Reset();
 
 	void Add(Vector3& position);
-	UINT lad() { return leadCount; }
+	
 public:
 	void Update();
 	void Scale(float scale) { this->scale = scale; }
 	void Rotate(float rotate) { this->rotate = rotate; }
+	void Gravity(Vector3 gravity) { this->gravity = gravity; }
+
+	void SetColor(Color color) { this->color = color; }
 
 private:
 	void MapVertices();
@@ -90,4 +93,8 @@ private:
 private:
 	float scale = 0.0f;
 	float rotate = 0.0f;
+	Color color;
+	Vector3 gravity;
+
+	bool bColor = false;
 };

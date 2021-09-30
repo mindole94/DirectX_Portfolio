@@ -1,5 +1,4 @@
 #pragma once
-//#include "Systems/IExecute.h"
 
 class Player
 {
@@ -9,172 +8,110 @@ public:
 
 	void Update();
 	void PreRender();
+	void PreRender_Reflection();
 	void Render();
+	void UIRender();
+	void EffectRender();
 
+public:
 	Vector3 GetPosition() { return position; }
-	Vector3 GetFireballPosition() { return fireballPosition; }
+	Vector3 Forward();
 
-	void SetHeight(float y) { height = y; }
-	void SetHitSucces(bool hit) { damageMoment = hit; }
+	float Damage() { return atk; }
 
-	auto GetColliderHit() -> ColliderObject* { return collidersHit; }
-	auto GetColliderAtt() -> ColliderObject* { return collidersAtt; }
-	auto GetColliderFireball() -> ColliderObject* { return colliderFireball; }
+	UINT CurrentSkill() { return currSkill; }
 
-	int CurrentSkill();
-	int Damage();
+	void SetHeight(float height) { this->height = height; }
 
-	void SetHp(int changeValue) { hp += changeValue; }
+	bool IsBuff() { return buff; }
 
-	bool CameraShake() { return cameraShake; }
-	bool CameraRelease() { return cameraRelease; }
+	void ReceivedDamage(float damage);// { hp -= damage; }
 
-	bool ActiveColliderAtt() { return activeColliderAtt; }
-	bool ActiveFireball() { return shootFireball; }
-	bool ActiveEvade() { return isEvade; }
-	
-	float GetFireballScale() { return fireballScale; }
+	void Full() { hp = mp = 10000.0f; }
 
-	void ShowCollider(bool show) { showCollider = show; }
-	//Default Motion
 private:
-	void CreatePlayer();
 	void Move();
 	void Attack();
-	void Evade();
 	void Jump();
+	void Evade();
+	
+	void Skill();
+	void Skill1();
+	void Skill2();
+	void Skill3();
+	void Skill4();
+	void Skill5();
 
-	//Skill Motion
-	void SuperJump();//스킬0
-	void DashAttack();//스킬1
-	void Yell();//스킬2
-	void UpperCut();//스킬3
-	void FireBall();//스킬4
-
-	//Default Animation
-private:
-	void SetIdle();
-	void SetRun();
-	void SetJump();
-	void SetEvade();
-	void SetAttack1();
-	void SetAttack2();
-	void SetAttack3();
-
-	//Skill Animation
-	void SetSuperJump();
-	void SetDash();
-	void SetSlash();
-	void SetYell();
-	void SetFireball();
+	void CountTime();
+	void SetDirection();
+	void CanReset();
 
 private:
-	void CreateImage();
-	void ImageUpdate();
-	void ImageRender();
+	void CreateUI();
+	void UpdateUI();
+	void RenderUI();
 
-	void CreateColliders();
-	void CollidersUpdate();
-	void CollidersRender();
+	void ColliderUpdate();
 
-private:
-	void CreateWeapon();
-	void AttachWeapon();
+public:
+	ColliderObject* HitBox();
+	ColliderObject* AttBox();
+	ColliderObject* FireBox();
 
-private:
-	void CreateParticle();
-	void ParticleUpdate();
-	void ParticleRender();
+	bool GetActiveAttBox();
+	bool GetActiveHitBox();
+	bool GetActiveFireBox();
 
 private:
-	void SettingVector();
-	void CoolTime();
-	void Reset();
-
-private:
+	class PlayerModel* player = NULL;
 	Shader* shader;
 
-	ModelAnimator* sapling = NULL;
-	ModelRender* weapon = NULL;
-	Transform* weaponTransform;
-
-	ColliderObject* collidersHit;
-	ColliderObject* collidersAtt;
-
-	Matrix worldBonesPosition[MAX_MODEL_TRANSFORMS];
-
-	bool showCollider = true;
+	Vector3 position;
+	Vector3 rotation;
 
 private:
-	int maxHp = 10000;
-	int maxMp = 10000;
-	int hp = 10000;
-	int mp = 10000;
-	int atk = 1000;
-	float runSpeed = 20.0f;
-	float jumpAccel = 0.0f;
+	enum Behavior
+	{
+		bIdle, bMove, bAttack, bJump, bEvade, bSkill, bReact, Count
+	};
+	Behavior behavior;
+
+private:
+	bool canMove = true;
+	bool canAttack[4] = { true, true, false, false };// 0 : All Attack, 1 : Attack Combo1, 2 : Attack Combo2, 3 : Attack Combo3
+	bool canJump = true;
+	bool canEvade = true;
+	bool canSkill = true;
+
+private:
+	float hp = 10000.0f;
+	float mp = 10000.0f;
+	float atk = 1000.0f;
+	const float maxHp = 10000.0f;
+	const float maxMp = 10000.0f;
+	const float consumeMana[6] = { 500.0f, 100.0f, 500.0f, 300.0f, 500.0f, 100.0f };
+	const float defaultAtk = 200.0f;
+	int comboInterval = 10;
+
+	const float coolTime[6] = { 2.0f, 1.0f, 5.0f, 1.0f, 10.0f, 1.0f };// 0 : 회피
+	float rCoolTime[6] = { 0.0f };
+	UINT currSkill = 0;
+
+	bool buff = false;
+	const float buffTime = 30.0f;
+	float rBuffTime = 0.0f;
+
+	float rInvincibleTime = 0.0f;
+	const float invincibleTime = 1.0f;
+
 	float height = 0.0f;
-	float jumpSpeed = 20.0f;
-	float autoHeal = 0.0f;
+	float rotRatio = 0.05f;
 
-	//Current Status
-	int motion = 0;
-	bool isRun = false;
-	bool prevRun = false;
-	bool isJump = false;
-	bool isUp = false;
-	bool isFall = true;
-	bool bAttack = false;
-	bool isAttack[3] = { false, false, false };
-	bool isEvade = false;
-	bool bSkill = false;
-	bool isSkill[5] = { false, false, false, false, false };
+private://UI
+	Texture* texture[9];// 0 : hp, 1 : mp, 2 : 회피, 3 ~ 7 : 스킬, 8 : 버프
+	Render2D* render2D[9];
 
-	//Motion Trigger
-	bool idleTrigger = false;
-	bool runTrigger = false;
-	bool jumpTrigger = false;
-	bool attackTrigger[3] = { false, false, false };
-	bool hitTrigger = false;
-	bool evadeTrigger = false;
-	bool skillTrigger[5] = { false, false, false, false, false };
-
-	//Able Motion
-	bool ableIdle = true;
-	bool ableMove = true;
-	bool ableRun = true;
-	bool ableJump = true;
-	bool ableAttack1 = true;
-	bool ableAttack2, ableAttack3 = false;
-	bool ableAttack[3] = { true, false, false };
-
-	//Time Setting
-	float curCoolTime[6];//5 : 회피
-	float coolTime[6] = { 5.0f, 5.0f, 10.0f, 3.0f, 5.0f, 2.0f };
-
-	bool damageMoment = false;//대미지가 들어가는 순간
-
-	bool activeColliderAtt = false;
-
-	Vector3 position = Vector3(0.0f, 0.0f, 0.0f);
-	Vector3 rotation = Vector3(0.0f, 0.0f, 0.0f);
-	Vector3 startPosition = Vector3(0.0f, 0.0f, 0.0f);
-
-	//월드
-	Vector3 wForward	= Vector3(+0.0f, 0.0f, -1.0f);
-	Vector3 wBackward	= Vector3(+0.0f, 0.0f, +1.0f);
-	Vector3 wRight		= Vector3(+1.0f, 0.0f, +0.0f);
-	Vector3 wLeft		= Vector3(-1.0f, 0.0f, +0.0f);
-
-	//로컬
-	Vector3 forward		= Vector3(+0.0f, +0.0f, -1.0f);
-	Vector3 backward	= Vector3(+0.0f, +0.0f, +1.0f);
-	Vector3 right		= Vector3(+1.0f, +0.0f, +0.0f);
-	Vector3 left		= Vector3(-1.0f, +0.0f, +0.0f);
-	Vector3 up			= Vector3(+0.0f, +1.0f, +0.0f);
-	Vector3 down		= Vector3(+0.0f, -1.0f, +0.0f);
-	
-	//카메라
+private://Camera
 	Vector3 cForward;
 	Vector3 cBackward;
 	Vector3 cLeft;
@@ -183,46 +120,4 @@ private:
 	Vector3 cFRight;
 	Vector3 cBLeft;
 	Vector3 cBRight;
-
-	//Camera
-private:
-	bool cameraShake = false;
-	bool cameraRelease = false;
-
-	//Image
-private:
-	Texture* hpTexture;
-	Texture* mpTexture;
-
-	Render2D * hpRender;
-	Render2D * mpRender;
-
-	Texture* skillTexture[6];
-	Render2D* skillRender[6];
-
-	//Particle
-private:
-	ParticleSystem* footprintParticle = NULL;
-	ParticleSystem* fireballParticle = NULL;
-	TrailSystem* trail = NULL;
-
-	bool bFootprint = false;
-	bool bFireball = false;
-	bool bSwordSpectrum = false;
-
-	//Fireball Info
-private:
-	ColliderObject* colliderFireball;
-
-	float fireballTime = 0.0f;
-	float fireballScale = 0.0f;
-	bool shootFireball = false;
-
-	Vector3 fireballStartPosition = Vector3(0.0f, 0.0f, 0.0f);
-	Vector3 fireballPosition = Vector3(0.0f, 0.0f, 0.0f);
-	Vector3 fireballRotation = Vector3(0.0f, 0.0f, 0.0f);
-	Vector3 fireballDirect = Vector3(0.0f, 0.0f, 0.0f);
 };
-
-//collidersAtt->Collider->GetTransform()->Position(fireballPosition);
-//0 20~50

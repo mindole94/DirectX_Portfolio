@@ -5,10 +5,12 @@
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console")
 
 #include "Game.h"
+#include "Test.h"
 
 void Main::Initialize()
 {
 	Push(new Game());
+	//Push(new Test());
 }
 
 void Main::Destroy()
@@ -67,6 +69,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR param, int 
 	desc.Handle = NULL;
 	desc.Width = 1280;
 	desc.Height = 720;
+	/*desc.Width = 1920;
+	desc.Height = 1017;*/
 	desc.Background = Color(0.3f, 0.3f, 0.3f, 1.0f);
 	D3D::SetDesc(desc);
 

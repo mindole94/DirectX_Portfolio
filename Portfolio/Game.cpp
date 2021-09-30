@@ -1,226 +1,543 @@
 #include "stdafx.h"
 #include "Game.h"
+#include "Map.h"
 #include "Player.h"
 #include "Monster1.h"
 #include "Monster2.h"
 
 void Game::Initialize()
 {
-	Context::Get()->GetCamera()->RotationDegree(20, -180, 0);
-	Context::Get()->GetCamera()->Position(0, 550, 715);
-	
-	shader = new Shader(L"48_Shadow.fxo");
-	shadow = new Shadow(shader, Vector3(128, 0, 128), 65);
+	Context::Get()->GetCamera()->RotationDegree(20, 0, 0);
 
-	sky = new CubeSky(L"Environment/GrassCube1024.dds", shader);
+	shader = new Shader(L"Battle.fxo");
+	shadow = new Shadow(shader, Vector3(128, 0, 128), 130);
 
-	terrain = new Terrain(shader, L"Terrain/Gray256.png");
-	terrain->BaseMap(L"Terrain/Dirt3.png");
+	map = new Map(shader);
+
+	Context::Get()->MapSize() = Vector2(map->GetTerrain()->GetWidth(), map->GetTerrain()->GetHeight());
+	Context::Get()->MapRestrictArea() = map->GetWater()->GetWaterRangeUV();
 
 	player = new Player(shader);
-	monster1 = new Monster1(shader);
-	monster2 = new Monster2(shader);
+	monster1 = new Monster1(shader, 30);
+	monster2 = new Monster2(shader, 30);
 
-	Vector3 playerPosition = player->GetPosition();
-	((Freedom *)Context::Get()->GetCamera())->At(Vector3(playerPosition.x, playerPosition.y + 20.0f, playerPosition.z));
+	//PostEffect
+	float width = D3D::Width(), height = D3D::Height();
+	renderTarget = new RenderTarget((UINT)width, (UINT)height);
+	depthStencil = new DepthStencil((UINT)width, (UINT)height);
+	viewport = new Viewport(width, height);
+	postEffect = new PostEffect(L"00_PostEffect.fxo");
+
+	dissolveMap = new Texture(L"Dissolve/dissolve1.png");
+	sDissolveMap = shader->AsSRV("DissolveMap");
+
+	Context::Get()->Ambient() = Color(1, 1, 1, 1);
+
+	weaponBox = new ColliderObject;
+
+	weaponBox->Init = new Transform();
+	weaponBox->Init->Scale(5.0f, 25.0f, 5.0f);
+	weaponBox->Init->Position(0.0f, 24.0f, 0.0f);
+
+	weaponBox->Transform = new Transform();
+	weaponBox->Collider = new Collider(weaponBox->Transform, weaponBox->Init);
+
 }
 
 void Game::Destroy()
 {
+	SafeDelete(weaponBox);
+	SafeDelete(dissolveMap);
+
+	SafeDelete(renderTarget);
+	SafeDelete(viewport);
+	SafeDelete(depthStencil);
+	SafeDelete(postEffect);
+
 	SafeDelete(monster2);
 	SafeDelete(monster1);
 	SafeDelete(player);
-	SafeDelete(terrain);
+
+	SafeDelete(map);
+	SafeDelete(shadow)
 
 	SafeDelete(shader);
-
 }
 
 void Game::Update()
 {
+	//////////////////////////////////////////////////////////////////////////////////////////
+	if (Keyboard::Get()->Press('P'))
 	{
-		ImGui::Checkbox("Colliders Show", &showCollider);
-		player->ShowCollider(showCollider);
-		monster1->ShowCollider(showCollider);
-		monster2->ShowCollider(showCollider);
+		player->Full();
+		std::cout << "Player : " << player->GetPosition().x << " " << player->GetPosition().y << " " << player->GetPosition().z << std::endl;
+	}
+	weaponBox->Collider->Update();
+
+	//////////////////////////////////////////////////////////////////////////////////////////
+
+	Vector3 playerPosition = player->GetPosition();
+	//////////////////////////////////////////////////////////////////////////////////////////
+	weaponBox->Transform->Position(playerPosition);
+	//////////////////////////////////////////////////////////////////////////////////////////
+
+	CameraSetting(playerPosition);
+	Interact();
+	ImGuiSetting();
+
+	monster1->PlayerPosition(playerPosition);
+	monster2->PlayerPosition(playerPosition);
+
+	{
+		float y = map->GetTerrain()->GetHeight(playerPosition);
+		player->SetHeight(y);
+
+		for (int i = 0; i < monster1->Num(); i++)
+		{
+			Vector3 pos = monster1->GetPosition(i);
+			y = map->GetTerrain()->GetHeight(pos) - 3.0f;
+			monster1->SetHeight(i, y);
+		}
+
+		for (int i = 0; i < monster2->Num(); i++)
+		{
+			Vector3 pos = monster2->GetPosition(i);
+			y = map->GetTerrain()->GetHeight(pos);
+			monster2->SetHeight(i, y);
+		}
 	}
 
-	//플레이어 위치
-	Vector3 playerPosition = player->GetPosition();
+	map->GetPlayerPosition(playerPosition);
+	map->Update();
+
+	shadow->Position(playerPosition);
 	
-	player->SetHeight(terrain->GetHeight(playerPosition));//플레이어 높이 설정
-
-	for (int index = 0; index < MONSTER1_NUM; index++)
-		monster1->SetHeight(index, terrain->GetHeight(monster1->GetPosition(index)));
-	
-	for (int index = 0; index < MONSTER2_NUM; index++)
-		monster2->SetHeight(index, terrain->GetHeight(monster2->GetPosition(index)) - 3.0f);
-
-	monster1->GetPlayerPosition(playerPosition);
-	monster2->GetPlayerPosition(playerPosition);
-		
-	Vector3 cameraPosition = ((Freedom *)Context::Get()->GetCamera())->GetPosition();
-
-	CheckFireball();
-	CheckHit();
-	CheckDamage();
-
-	player->Update();
-
 	monster2->Update();
 	monster1->Update();
+	player->Update();
 
-	CameraSetting();
+	if (player->IsBuff() == true)
+		postEffect->PlayAfterImage(true);
+	else
+		postEffect->PlayAfterImage(false);
 
-	sky->Update();
-	terrain->Update();
-
+	postEffect->Update();
 }
 
 void Game::PreRender()
 {
-	shadow->PreRender();
+	//PreRender
+	{
+		//Depth
+		{
+			shadow->PreRender();
 
-	monster2->PreRender();
-	monster1->PreRender();
-	player->PreRender();
+			monster2->PreRender();
+			monster1->PreRender();
+			player->PreRender();
+
+			map->PreRender();
+		}
+
+		//Reflection
+		{
+			map->PreRender_Reflection_Water();
+
+			monster2->PreRender_Reflection();
+			monster1->PreRender_Reflection();
+			player->PreRender_Reflection();
+		}
+
+		//Refraction
+		{
+			map->PreRender_Refraction_Water();
+
+			monster2->Render();
+			monster1->Render();
+			player->Render();
+
+			weaponBox->Collider->Render();
+		}
+
+		map->GetWater()->PreRender_End();
+
+		//Sea
+		if(map->BSea() == true)
+		{
+			map->PreRender_Reflection_Sea();
+
+			map->PreRender_Refraction_Sea();
+
+			map->GetSea()->PreRender_End();
+		}
+	}
+
+	//Bloom
+	viewport->RSSetViewport();
+	{
+		renderTarget->PreRender(depthStencil);
+
+		map->Render();
+
+		monster2->Render();
+		monster1->Render();
+		player->Render();
+		weaponBox->Collider->Render();
+		player->EffectRender();
+		monster1->AttackRender();
+	}
+	postEffect->PreRender_Bloom(renderTarget, depthStencil, viewport);
 	
-	terrain->Pass(3);
-	terrain->Render();
+	//AfterImage
+	viewport->RSSetViewport();
+	{
+		renderTarget->PreRender(depthStencil);
+
+		player->Render();
+	}
+	postEffect->PreRender_AfterImage(renderTarget, depthStencil, viewport);
 }
 
 void Game::Render()
 {
-	sky->Pass(4);
-	sky->Render();
+	sDissolveMap->SetResource(dissolveMap->SRV());
 
-	terrain->Pass(8);
-	terrain->Render();
+	postEffect->Render();
+	
+	if (onUI == true)
+		player->UIRender();
 
-	monster2->Render();
-	monster1->Render();
+	//player->Render();
+	//map->Render();
 
-	player->Render();
+	////PostEffect Off
+	//{
+	//	sky->Pass(10);
+	//	sky->Render();
+
+	//	terrain->Render();
+
+	//	monster2->Render();
+	//	monster1->Render();
+	//	player->Render();
+	//}
 }
 
-void Game::CheckHit()
+void Game::Interact()
 {
-	if (player->ActiveColliderAtt() == false) return;//공격중이 아닐때 리턴
-	
-	for (int index = 0; index < MONSTER1_NUM; index++)
+	PlayerDamaged();
+
+	InteractSkill2();
+
+	if (player->GetActiveAttBox() == false) return;
+
+	switch (player->CurrentSkill())
 	{
-		if (monster1->ActiveColliderHit(index) == false) continue;//무적시간일 경우 스킵
+	case 0: InteractDefault(); break;
+	case 1: InteractSkill1(); break;
+	case 3: InteractSkill3(); break;
+	case 5: InteractSkill5(); break;
+	}
+}
 
-		float distance = D3DXVec3Length(&(monster1->GetPosition(index) - player->GetPosition()));
+void Game::InteractDefault()
+{
+	float damage = player->Damage();
 
-		if (distance > 50.0f) continue;//거리가 멀경우 스킵
+	for (int i = 0; i < monster1->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster1->GetPosition(i) - player->GetPosition()));
+		
+		if (distance > 12.0f) continue;
 
-		bool hit = player->GetColliderAtt()->Collider->Intersection(monster1->GetColliderHit(index)->Collider);
+		if (monster1->GetActiveHitBox(i) == false) continue;
+		
+		bool hit = player->AttBox()->Collider->Intersection(monster1->HitBox(i)->Collider);
 		
 		if (hit == true)
 		{
-			player->SetHitSucces(true);
-			
-			monster1->Damage(index, player->CurrentSkill(), player->Damage(), false);
+			monster1->GetDamage(i, damage);
+
+			cameraShake = true;
 		}
 	}
 
-	for (int index = 0; index < MONSTER2_NUM; index++)
+	for (int i = 0; i < monster2->Num(); i++)
 	{
-		if (monster2->ActiveColliderHit(index) == false) continue;//무적시간일 경우 스킵
+		float distance = D3DXVec3Length(&(monster2->GetPosition(i) - player->GetPosition()));
 
-		float distance = D3DXVec3Length(&(monster2->GetPosition(index) - player->GetPosition()));
+		if (distance > 12.0f) continue;
 
-		if (distance > 50.0f) continue;//거리가 멀경우 스킵
+		if (monster2->GetActiveHitBox(i) == false) continue;
 
-		bool hit = player->GetColliderAtt()->Collider->Intersection(monster2->GetColliderHit(index)->Collider);
+		bool hit = player->AttBox()->Collider->Intersection(monster2->HitBox(i)->Collider);
 
 		if (hit == true)
 		{
-			player->SetHitSucces(true);
+			monster2->GetDamage(i, damage);
 
-			monster2->Damage(index, player->CurrentSkill(), player->Damage(), false);
+			cameraShake = true;
 		}
 	}
 }
 
-void Game::CheckFireball()
+void Game::InteractSkill1()
 {
-	if (player->ActiveFireball() == false) return;//공격중이 아닐때 리턴
+	float damage = player->Damage() * 1.5f;
 
-	for (int index = 0; index < MONSTER1_NUM; index++)
+	for (int i = 0; i < monster1->Num(); i++)
 	{
-		if (monster1->ActiveColliderHit(index) == false) continue;//무적시간일 경우 스킵
+		float distance = D3DXVec3Length(&(monster1->GetPosition(i) - player->GetPosition()));
 
-		float distance = D3DXVec3Length(&(monster1->GetPosition(index) - player->GetFireballPosition()));
+		if (distance > 12.0f) continue;
 
-		if (distance > 30.0f) continue;//거리가 멀경우 스킵
+		if (monster1->GetActiveHitBox(i) == false) continue;
 
-		bool hit = player->GetColliderFireball()->Collider->Intersection(monster1->GetColliderHit(index)->Collider);
-
-		if (hit == true)
-			monster1->Damage(index, player->CurrentSkill(), player->GetFireballScale() * 50.0f, true);
-	}
-
-	for (int index = 0; index < MONSTER2_NUM; index++)
-	{
-		if (monster2->ActiveColliderHit(index) == false) continue;//무적시간일 경우 스킵
-
-		float distance = D3DXVec3Length(&(monster2->GetPosition(index) - player->GetFireballPosition()));
-
-		if (distance > 30.0f) continue;//거리가 멀경우 스킵
-
-		bool hit = player->GetColliderFireball()->Collider->Intersection(monster2->GetColliderHit(index)->Collider);
-
-		if (hit == true)
-			monster2->Damage(index, player->CurrentSkill(), player->GetFireballScale() * 50.0f, true);
-	}
-}
-
-void Game::CheckDamage()
-{
-	if (player->ActiveEvade() == true) return;//플레이어가 회피중일때 리턴
-
-	for (int index = 0; index < MONSTER1_NUM; index++)
-	{
-		if (monster1->ActiveColliderAtt(index) == false) continue;//몬스터가 공격중이 아닐때 스킵
-
-		bool hit = monster1->GetColliderAtt(index)->Collider->Intersection(player->GetColliderHit()->Collider);
+		bool hit = player->AttBox()->Collider->Intersection(monster1->HitBox(i)->Collider);
 
 		if (hit == true)
 		{
-			int damage = Math::Random(-50, -100);
+			monster1->GetDamage(i, damage);
 
-			player->SetHp(damage);
-			monster1->SetActiveColliderHit(index, false);
+			cameraShake = true;
 		}
 	}
 
-	for (int index = 0; index < MONSTER2_NUM; index++)
+	for (int i = 0; i < monster2->Num(); i++)
 	{
-		if (monster2->ActiveColliderAtt(index) == false) continue;//몬스터가 공격중이 아닐때 스킵
+		float distance = D3DXVec3Length(&(monster2->GetPosition(i) - player->GetPosition()));
 
-		bool hit = monster2->GetColliderAtt(index)->Collider->Intersection(player->GetColliderHit()->Collider);
+		if (distance > 12.0f) continue;
+
+		if (monster2->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->AttBox()->Collider->Intersection(monster2->HitBox(i)->Collider);
 
 		if (hit == true)
 		{
-			int damage = Math::Random(-50, -100);
+			monster2->GetDamage(i, damage);
 
-			player->SetHp(damage);
-			monster2->SetActiveColliderHit(index, false);
+			cameraShake = true;
 		}
 	}
 }
 
-void Game::CameraSetting()
+void Game::InteractSkill2()
 {
-	Vector3 playerPosition = player->GetPosition();
+	if (player->GetActiveFireBox() == false) return;
 
-	if (player->CameraRelease() == true)
-		((Freedom *)Context::Get()->GetCamera())->At(Vector3(playerPosition.x, terrain->GetHeight(playerPosition), playerPosition.z));
+	float damage = player->Damage() * 2.0f;
+
+	Vector3 pos;
+	player->FireBox()->Init->Position(&pos);
+
+	for (int i = 0; i < monster1->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster1->GetPosition(i) - pos));
+
+		if (distance > 15.0f) continue;
+
+		if (monster1->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->FireBox()->Collider->Intersection(monster1->HitBox(i)->Collider);
+
+		if (hit == true)
+			monster1->GetDamage(i, damage);
+	}
+
+	for (int i = 0; i < monster2->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster2->GetPosition(i) - pos));
+
+		if (distance > 15.0f) continue;
+
+		if (monster2->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->FireBox()->Collider->Intersection(monster2->HitBox(i)->Collider);
+
+		if (hit == true)
+			monster2->GetDamage(i, damage);
+	}
+}
+
+void Game::InteractSkill3()
+{
+	Vector3 forward;
+	forward = player->Forward();
+
+	monster1->PlayerForward(forward);
+	monster2->PlayerForward(forward);
+
+	for (int i = 0; i < monster1->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster1->GetPosition(i) - player->GetPosition()));
+		
+		if (distance > 7.0f) continue;
+
+		if (monster1->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->AttBox()->Collider->Intersection(monster1->HitBox(i)->Collider);
+
+		if (hit == true)
+			monster1->SetKnockback(i, true);
+	}
+
+	for (int i = 0; i < monster2->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster2->GetPosition(i) - player->GetPosition()));
+
+		if (distance > 7.0f) continue;
+
+		if (monster2->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->AttBox()->Collider->Intersection(monster2->HitBox(i)->Collider);
+
+		if (hit == true)
+			monster2->SetKnockback(i, true);
+	}
+}
+
+void Game::InteractSkill5()
+{
+	float damage = player->Damage() * 2.0f;
+
+	for (int i = 0; i < monster1->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster1->GetPosition(i) - player->GetPosition()));
+
+		if (monster1->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->AttBox()->Collider->Intersection(monster1->HitBox(i)->Collider);
+
+		if (hit == true)
+		{
+			monster1->GetDamage(i, damage);
+
+			cameraShake = true;
+		}
+	}
+
+	for (int i = 0; i < monster2->Num(); i++)
+	{
+		float distance = D3DXVec3Length(&(monster2->GetPosition(i) - player->GetPosition()));
+
+		if (monster2->GetActiveHitBox(i) == false) continue;
+
+		bool hit = player->AttBox()->Collider->Intersection(monster2->HitBox(i)->Collider);
+
+		if (hit == true)
+		{
+			monster2->GetDamage(i, damage);
+
+			cameraShake = true;
+		}
+	}
+}
+
+void Game::PlayerDamaged()
+{
+	for (int i = 0; i < monster1->Num(); i++)
+	{
+		if (monster1->GetActiveAttBox(i) == false) continue;
+
+		bool hit = player->HitBox()->Collider->Intersection(monster1->AttBox(i)->Collider);
+
+		if (hit == true)
+		{
+			player->ReceivedDamage(50.0f);
+			monster1->CheckHit(i, true);
+		}
+	}
+
+	for (int i = 0; i < monster2->Num(); i++)
+	{
+		if (monster2->GetActiveAttBox(i) == false) continue;
+
+		bool hit = player->HitBox()->Collider->Intersection(monster2->AttBox(i)->Collider);
+
+		if (hit == true)
+			player->ReceivedDamage(50.0f);
+	}
+}
+
+void Game::CameraSetting(Vector3 pos)
+{
+	if (cameraShake == true)
+	{
+		((Freedom *)Context::Get()->GetCamera())->SetShake(0.5f, 1.0f);
+		cameraShake = false;
+	}
 	else
-		((Freedom *)Context::Get()->GetCamera())->At(Vector3(playerPosition.x, playerPosition.y, playerPosition.z));;
+		((Freedom *)Context::Get()->GetCamera())->At(pos);
+}
 
-	if (player->CameraShake() == true)
-		((Freedom *)Context::Get()->GetCamera())->SetShake(1.0f, 2.0f);
+void Game::ImGuiSetting()
+{
+	if (Keyboard::Get()->Down('O'))
+	{
+		bool b = Context::Get()->GetOnOff();
+		b = !b;
+		Context::Get()->SetOnOff(b);
+	}
+	
+	if (Context::Get()->GetOnOff() == true)
+	{
+		ImGui::Begin("Setting");
+		{
+			string str = to_string(ImGui::GetIO().Framerate);
+			ImGui::Text(str.c_str()); ImGui::Spacing();
+			
+			ImGui::Spacing(); ImGui::Separator();  ImGui::Spacing();
+
+			ImGui::Text("Wire Frame"); ImGui::Spacing();
+
+			static bool bSea = map->BSea();
+			ImGui::Checkbox("Be Sea", &bSea);
+			map->BSea(bSea);
+
+			static bool seaPass = false;
+			ImGui::Checkbox("WireFrame Sea", &seaPass);
+			map->SeaPass(seaPass == false ? 24 : 25);
+
+			static bool terrainPass = false;
+			ImGui::Checkbox("WireFrame Terrain", &terrainPass);
+			map->TerrainPass(terrainPass == false ? 8 : 9);
+
+			ImGui::Spacing(); ImGui::Separator();  ImGui::Spacing();
+
+			ImGui::Text("Time"); ImGui::Spacing();
+
+			static bool realTime = map->GetSky()->GetRealTime();
+			ImGui::Checkbox("Real Time##Sky", &realTime);
+			map->GetSky()->SetRealTime(realTime);
+
+			static float timeFactor = map->GetSky()->GetTimeFactor();
+			ImGui::SliderFloat("Time Facotr##Sky", &timeFactor, 0.0f, 5.0f);
+			map->GetSky()->SetTimeFactor(timeFactor);
+
+			float theta = map->GetSky()->GetTheta();
+			ImGui::SliderFloat("Sky Time", &theta, -Math::PI, Math::PI);
+			if (map->GetSky()->GetRealTime() == false)
+				map->GetSky()->SetTheta(theta);
+
+			float plantShake = map->GetPlantShake();
+			ImGui::SliderFloat("Plant Shake", &plantShake, 0.0f, 2.0f * Math::PI);
+			map->SetPlantShake(plantShake);
+
+			ImGui::Spacing(); ImGui::Separator();  ImGui::Spacing();
+
+			ImGui::Text("UI"); ImGui::Spacing();
+			ImGui::Checkbox("On UI", &onUI);
+
+			ImGui::Spacing(); ImGui::Separator();  ImGui::Spacing();
+
+			ImGui::Text("Camera"); ImGui::Spacing();
+
+			bool bFreeMode = ((Freedom *)Context::Get()->GetCamera())->GetFreeMode();
+			ImGui::Checkbox("Free Camera", &bFreeMode);
+			((Freedom *)Context::Get()->GetCamera())->SetFreeMode(bFreeMode);
+		}
+		ImGui::End();
+	}
+
 }

@@ -65,7 +65,6 @@ private:
 	Texture* diffuseMap;
 	Texture* specularMap;
 	Texture* normalMap;
-	Texture* opacityMap;
 
 	ConstantBuffer* buffer;
 	ID3DX11EffectConstantBuffer* sBuffer;

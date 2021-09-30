@@ -12,7 +12,7 @@ Shadow::Shadow(Shader * shader, Vector3 & position, float radius, UINT width, UI
 	sBuffer = shader->AsConstantBuffer("CB_Shadow");
 	sShadowMap = shader->AsSRV("ShadowMap");
 
-	desc.MapSize = Vector2(width, height);
+	desc.MapSize = Vector2((float)width, (float)height);
 
 
 	//Create Sampler State
@@ -45,23 +45,21 @@ Shadow::~Shadow()
 
 void Shadow::PreRender()
 {
-	//ImGui::InputInt("Quality", (int *)&desc.Quality);
-	//desc.Quality %= 3;
-
-	//ImGui::SliderFloat3("Light Direction", Context::Get()->Direction(), -1, +1);
-	//ImGui::SliderFloat("Bias", &desc.Bias, -0.0001f, +0.001f, "%.4f");
-
 	renderTarget->PreRender(depthStencil);
 	viewport->RSSetViewport();
 
 	CalcViewProjection();
-
 
 	buffer->Render();
 	sBuffer->SetConstantBuffer(buffer->Buffer());
 
 	sShadowMap->SetResource(depthStencil->SRV());
 	sPcfSampler->SetSampler(0, pcfSampler);
+}
+
+void Shadow::Position(Vector3 vec)
+{
+	position = vec;
 }
 
 void Shadow::CalcViewProjection()

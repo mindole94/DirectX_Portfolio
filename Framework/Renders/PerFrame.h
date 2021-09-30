@@ -9,6 +9,16 @@ public:
 	void Update();
 	void Render();
 
+	void Culling(Plane* planes);
+	void Clipping(Plane& plane);
+	void GetFrustumPlanes(Plane* planes);
+
+	float GetZFar() { return zFar; }
+	void SetZFar(float zFar) { this->zFar = zFar; }
+
+	float GetFov() { return fov; }
+	void SetFov(float fov) { this->fov = fov; }
+
 private:
 	struct Desc
 	{
@@ -65,4 +75,10 @@ private:
 
 	ConstantBuffer* spotLightBuffer;
 	ID3DX11EffectConstantBuffer* sSpotLightBuffer;
+
+	class Frustum* frustum;
+	class Perspective* perspective;
+
+	float zFar = 900.0f;
+	float fov = 0.31f;
 };

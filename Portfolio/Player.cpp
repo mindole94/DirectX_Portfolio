@@ -1,223 +1,143 @@
 #include "stdafx.h"
 #include "Player.h"
+#include "PlayerModel.h"
 
 Player::Player(Shader * shader)
 	: shader(shader)
 {
-	CreatePlayer();
-	CreateWeapon();
-	CreateColliders();
-	CreateImage();
-	CreateParticle();
+	player = new PlayerModel(shader);
+
+	CreateUI();
 }
 
 Player::~Player()
 {
-	SafeDelete(colliderFireball);
-	SafeDelete(trail);
-	SafeDelete(fireballParticle);
-	SafeDelete(footprintParticle);
-	
-	SafeDelete(skillTexture[0]);
-	SafeDelete(skillRender[0]);
-	SafeDelete(mpRender);
-	SafeDelete(hpRender);
-	SafeDelete(mpTexture);
-	SafeDelete(hpTexture);
+	for (UINT i = 0; i < 8; i++)
+	{
+		SafeDelete(texture[i]);
+		SafeDelete(render2D[i]);
+	}
 
-	SafeDelete(collidersAtt);
-	SafeDelete(collidersHit);
-	SafeDelete(weaponTransform);
-	SafeDelete(weapon);
-	SafeDelete(sapling);
+	SafeDelete(player);
 }
 
 void Player::Update()
 {
-	SettingVector();
-	motion = sapling->GetCurrentClipIndex(0);
-	sapling->GetAttachTransforms(0, worldBonesPosition);
-
-	if (hp > 0)
+	if (hp >= 0)
 	{
-		//Idle
-		if (ableIdle == true)
-		{
-			if (idleTrigger == false)
-			{
-				idleTrigger = true;
+		SetDirection();
 
-				SetIdle();
-			}
-		}
-
-		if (isEvade == false && bSkill == false)
+		if (behavior == bIdle)
+			player->Idle();
+		
+		if (((Freedom *)Context::Get()->GetCamera())->GetFreeMode() == false)
 		{
 			Move();
 			Attack();
 			Jump();
+			Evade();
+			Skill();
+		}
+		else
+		{
+			CanReset();
+			behavior = bIdle;
+			player->PlaySwordTrail(false);
+			player->SwordTrail()->Delete(true);
 		}
 
-		SuperJump();
-		DashAttack();
-		Yell();
-		UpperCut();
-		FireBall();
-
-		Evade();
-
-	}//if (hp > 0)
-
-	autoHeal += Time::Delta();
-	if (autoHeal > 5.0f)
-	{
-		autoHeal = 0.0f;
-		hp += 30.0f;
-		mp += 30.0f;
+		ColliderUpdate();
 	}
 
-	hp = Math::Clamp(hp, 0, maxHp);
-	mp = Math::Clamp(mp, 0, maxMp);
+	CountTime();
 
-	if (Keyboard::Get()->Press(0x39))
-		hp -= 5;
-	else if (Keyboard::Get()->Down(0x30))
-		hp += 100;
+	UpdateUI();
 
-	CoolTime();
-
-
-
-	position.y = Math::Clamp(position.y, height, 100000.0f);
-
-	sapling->GetTransform(0)->Position(position);
-	sapling->GetTransform(0)->Rotation(rotation);
-
-	sapling->UpdateTransforms();
-	sapling->Update();
-
-	AttachWeapon();
-
-	ImageUpdate();
-	CollidersUpdate();
-	ParticleUpdate();
-	//TODO : 지워라
-	if (Keyboard::Get()->Down('P'))
-	{
-		std::cout << "Player Position : " << sapling->GetTransform(0)->GetPosition().x << " " << sapling->GetTransform(0)->GetPosition().y << " " << sapling->GetTransform(0)->GetPosition().z << std::endl;
-		std::cout << "Player Scale : " << sapling->GetTransform(0)->GetScale().x << " " << sapling->GetTransform(0)->GetScale().y << " " << sapling->GetTransform(0)->GetScale().z << std::endl;
-		std::cout << motion << std::endl;
-		system("pause");
-	}
+	player->SetPosition(position);
+	player->Rotation(rotation);
+	player->Update();
 }
 
 void Player::PreRender()
 {
-	sapling->Pass(2);
-	sapling->Render();
+	player->PreRender();
+}
 
-	weapon->Pass(1);
-	weapon->Render();
+void Player::PreRender_Reflection()
+{
+	player->PreRender_Reflection();
 }
 
 void Player::Render()
 {
-	CollidersRender();
-	
-	sapling->Pass(10);
-	sapling->Render();
+	player->Render();
+	player->BoxRender();
 
-	weapon->Pass(9);
-	weapon->Render();
-
-	ParticleRender();
-	ImageRender();
 }
 
-int Player::CurrentSkill()
+void Player::UIRender()
 {
-	if (isSkill[0] == true)//슈퍼점프
-		return 0;
-	else if (isSkill[1] == true)//돌격
-		return 1;
-	else if (isSkill[2] == true)//방깍
-		return 2;
-	else if (isSkill[3] == true)//어퍼컷
-		return 3;
-	else if (isSkill[4] == true)//파이어볼
-		return 4;
-	else//평타
-		return 5;
+	RenderUI();
 }
 
-int Player::Damage()
+void Player::EffectRender()
 {
-	if (cameraShake == true)//슈퍼점프
-		return atk * 5;
-	else if (isSkill[1] == true)//돌격
-		return atk * 2;
-	else if (isSkill[2] == true)//방깍
-		return 0;
-	else if (isSkill[3] == true)//어퍼컷
-		return atk * 3;
-	else if (isSkill[4] == true)//파이어볼
-		return fireballScale * 5;
-	else//평타
-		return atk;
+	player->EffectRender();
+	player->BoxRender();
+
 }
 
-void Player::CreatePlayer()
+Vector3 Player::Forward()
 {
-	sapling = new ModelAnimator(shader);
-	sapling->ReadMesh(L"sapling/sapling");
-	sapling->ReadMaterial(L"sapling/sapling");
-
-	//이동
-	sapling->ReadClip(L"sapling/clip/Standing Idle");//0
-	sapling->ReadClip(L"sapling/clip/Running");//1
-	sapling->ReadClip(L"sapling/clip/Standing Jump");//2일반 점프
-
-	//회피
-	sapling->ReadClip(L"sapling/clip/Jump Back");//3무적 백점프
-
-	//평타
-	sapling->ReadClip(L"sapling/clip/Standing Melee Attack Downward");//4 평타 콤보1
-	sapling->ReadClip(L"sapling/clip/Standing Melee Attack Kick");//5 평타 콤보2
-	sapling->ReadClip(L"sapling/clip/Standing Melee Attack Backhand");//6 평타 콤보3
-
-	//스킬
-	sapling->ReadClip(L"sapling/clip/Mutant Jumping");//7
-	sapling->ReadClip(L"sapling/clip/Sword And Shield Run");//8
-	sapling->ReadClip(L"sapling/clip/Sword And Shield Slash");//9
-	sapling->ReadClip(L"sapling/clip/Standing Taunt Battlecry");//10
-	sapling->ReadClip(L"sapling/clip/Spell Cast");//11
-
-	//댄스
-	sapling->ReadClip(L"sapling/clip/Chicken Dance");//13
-
-	Transform* transform = NULL;
-	transform = sapling->AddTransform();
-	transform->Position(0, 0, 0);
-	transform->Scale(0.05f, 0.05f, 0.05f);
-
-	sapling->UpdateTransforms();
-
-	position = sapling->GetTransform(0)->GetPosition();
+	return player->Forward();
 }
 
-#pragma region default motion
+void Player::ReceivedDamage(float damage)
+{
+	hp -= damage;
+
+	Color color = player->GetPlayer()->GetColor(0);
+	color.r = 1.0f;
+	player->GetPlayer()->SetColor(0, color);
+	rInvincibleTime = 0.5f;
+
+	player->SetActiveHitBox(false);
+}
+
 void Player::Move()
 {
-	if (ableMove == false) return;
-	
-	isRun = true;
+	if (canMove == false) return;
+
+	static bool trigger = false;
+
+	if (Keyboard::Get()->Press('W') || Keyboard::Get()->Press('A') ||
+		Keyboard::Get()->Press('S') || Keyboard::Get()->Press('D'))
+		behavior = bMove;
+	else
+		behavior = bIdle;
+
+	if (behavior == bMove)
+		player->footprint.Use = true;
+	else
+	{
+		trigger = false;
+		player->footprint.Use = false;
+		return;
+	}
+
+	Vector3 forward = Forward();
+
+	float speed = 20.0f;
+
+	if (Keyboard::Get()->Press(VK_SHIFT))
+		speed *= 20.0f;
 
 	if (Keyboard::Get()->Press('W'))
 	{
 		if (Keyboard::Get()->Press('A'))
 		{
 			Vector3 cforward = Context::Get()->GetCamera()->Forward();
-			position += cFLeft * runSpeed * Time::Delta();
+			position += cFLeft * speed * Time::Delta();
 
 			float dot = D3DXVec3Dot(&cFLeft, &forward);
 			Vector3 temp;
@@ -226,15 +146,11 @@ void Player::Move()
 			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 			float theta = sign * acosf(dot);
 
-			Vector3 rot;
-			sapling->GetTransform(0)->Rotation(&rot);
-			rot.y += theta / 30;
-
-			rotation.y = rot.y;
+			rotation.y += theta * rotRatio;
 		}
 		else if (Keyboard::Get()->Press('D'))
 		{
-			position += cFRight * runSpeed * Time::Delta();
+			position += cFRight * speed * Time::Delta();
 
 			float dot = D3DXVec3Dot(&cFRight, &forward);
 			Vector3 temp;
@@ -243,15 +159,11 @@ void Player::Move()
 			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 			float theta = sign * acosf(dot);
 
-			Vector3 rot;
-			sapling->GetTransform(0)->Rotation(&rot);
-			rot.y += theta / 30;
-
-			rotation.y = rot.y;
+			rotation.y += theta * rotRatio;
 		}
 		else
 		{
-			position += cForward * runSpeed * Time::Delta();
+			position += cForward * speed * Time::Delta();
 
 			float dot = D3DXVec3Dot(&cForward, &forward);
 			Vector3 temp;
@@ -260,20 +172,14 @@ void Player::Move()
 			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 			float theta = sign * acosf(dot);
 
-			Vector3 rot;
-			sapling->GetTransform(0)->Rotation(&rot);
-			rot.y += theta / 30;
-
-			rotation.y = rot.y;
+			rotation.y += theta * rotRatio;
 		}
-
-		bFootprint = true;
 	}
 	else if (Keyboard::Get()->Press('S'))
 	{
 		if (Keyboard::Get()->Press('A'))
 		{
-			position += cBLeft * runSpeed * Time::Delta();
+			position += cBLeft * speed * Time::Delta();
 
 			float dot = D3DXVec3Dot(&cBLeft, &forward);
 			Vector3 temp;
@@ -282,15 +188,11 @@ void Player::Move()
 			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 			float theta = sign * acosf(dot);
 
-			Vector3 rot;
-			sapling->GetTransform(0)->Rotation(&rot);
-			rot.y += theta / 30;
-
-			rotation.y = rot.y;
+			rotation.y += theta * rotRatio;
 		}
 		else if (Keyboard::Get()->Press('D'))
 		{
-			position += cBRight * runSpeed * Time::Delta();
+			position += cBRight * speed * Time::Delta();
 
 			float dot = D3DXVec3Dot(&cBRight, &forward);
 			Vector3 temp;
@@ -299,15 +201,11 @@ void Player::Move()
 			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 			float theta = sign * acosf(dot);
 
-			Vector3 rot;
-			sapling->GetTransform(0)->Rotation(&rot);
-			rot.y += theta / 30;
-
-			rotation.y = rot.y;
+			rotation.y += theta * rotRatio;
 		}
 		else
 		{
-			position += cBackward * runSpeed * Time::Delta();
+			position += cBackward * speed * Time::Delta();
 
 			float dot = D3DXVec3Dot(&cBackward, &forward);
 			Vector3 temp;
@@ -316,18 +214,12 @@ void Player::Move()
 			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 			float theta = sign * acosf(dot);
 
-			Vector3 rot;
-			sapling->GetTransform(0)->Rotation(&rot);
-			rot.y += theta / 30;
-
-			rotation.y = rot.y;
+			rotation.y += theta * rotRatio;
 		}
-
-		bFootprint = true;
 	}
 	else if (Keyboard::Get()->Press('A'))
 	{
-		position += cLeft * runSpeed * Time::Delta();
+		position += cLeft * speed * Time::Delta();
 
 		float dot = D3DXVec3Dot(&cLeft, &forward);
 		Vector3 temp;
@@ -336,17 +228,11 @@ void Player::Move()
 		float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 		float theta = sign * acosf(dot);
 
-		Vector3 rot;
-		sapling->GetTransform(0)->Rotation(&rot);
-		rot.y += theta / 30;
-
-		rotation.y = rot.y;
-
-		bFootprint = true;
+		rotation.y += theta * rotRatio;
 	}
 	else if (Keyboard::Get()->Press('D'))
 	{
-		position += cRight * runSpeed * Time::Delta();
+		position += cRight * speed * Time::Delta();
 
 		float dot = D3DXVec3Dot(&cRight, &forward);
 		Vector3 temp;
@@ -355,886 +241,690 @@ void Player::Move()
 		float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
 		float theta = sign * acosf(dot);
 
-		Vector3 rot;
-		sapling->GetTransform(0)->Rotation(&rot);
-		rot.y += theta / 30;
-
-		rotation.y = rot.y;
-
-		bFootprint = true;
-	}
-	else
-	{
-		runTrigger = false;
-
-		isRun = false;
-
-		bFootprint = false;
+		rotation.y += theta * rotRatio;
 	}
 
-	if (prevRun != isRun && ableRun == true)
+	if (trigger == false)
 	{
-		Reset();
-	}
+		player->Run();
 
-	prevRun = isRun;
-
-	if (motion == 1 && isRun == true)
-	{
-		if (Keyboard::Get()->Press(VK_SHIFT))
-		{
-			sapling->SetClipSpeed(1.5f);
-			runSpeed = 30.0f;
-		}
-		else
-		{
-			sapling->SetClipSpeed(1.0f);
-			runSpeed = 20.0f;
-		}
-	}
-
-	if (runTrigger == false && isRun == true && ableRun == true)
-	{
-		runTrigger = true;
-		ableIdle = false;
-		ableJump = true;
-		ableAttack[0] = true;
-
-		SetRun();
+		trigger = true;
 	}
 }
 
 void Player::Attack()
 {
-	if (ableAttack[0] == false) return;
+	static float time = 0.0f;
+	static bool countTime = false;
+	static UINT combo = 0;
 
-	//Attack
-	if (Mouse::Get()->Down(0) && ableAttack[0] == true)
+	if (countTime == true)
+		time += Time::Delta();
+
+	if (time >= 1.0f)
 	{
-		isAttack[0] = true;
-		
-		ableIdle = false;
-		ableMove = true;
-		ableRun = false;
-		ableJump = false;
-		ableAttack[0] = true;
+		CanReset();
 
-		activeColliderAtt = true;
+		countTime = false;
 
-		if (attackTrigger[0] == false)
-		{
-			attackTrigger[0] = true;
-			trail->Reset();
+		time = 0.0f;
+		combo = 0;
 
-			SetAttack1();
-		}
+		player->slash.Use = false;
 	}
 
-	//Attack Release
-	if (motion == 4 && isAttack[0])
-	{
-		if (hitTrigger == false)
-		{
-			bAttack = true;
+	if (canAttack[0] == false) return;
 
-			hitTrigger = true;
+	if (Mouse::Get()->Down(0)) behavior = bAttack;
+	if (behavior != bAttack) return;
+	
+	if (Mouse::Get()->Down(0))
+	{
+		canMove = false;
+		canJump = false;
+		canSkill = false;
+
+		if (canAttack[1] == true)
+		{
+			canAttack[1] = false;
+			
+			countTime = false;
+
+			combo = 1;
+
+			mp += 300.0f;
+			
+			player->SwordTrail()->Reset();
+			player->Attack1();
+
+			if(buff == true)
+				player->slash.Use = true;
+		}
+		else if (canAttack[2] == true)
+		{
+			canAttack[2] = false;
+			countTime = false;
+			combo = 2;
+
+			mp += 300.0f;
+
+			player->SwordTrail()->Reset();
+			player->Attack2();
+
+			if (buff == true)
+				player->slash.Use = true;
+		}
+		else if (canAttack[3] == true)
+		{
+			canAttack[3] = false;
+			countTime = false;
+			combo = 3;
+
+			mp += 300.0f;
+
+			player->SwordTrail()->Reset();
+			player->Attack3();
+
+			if (buff == true)
+				player->slash.Use = true;
+		}
+	}
+	
+	if (combo == 1)
+	{
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(4)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
+
+		if (currFrame == 12)
+		{
+			player->SwordTrail()->Delete(false);
+			player->PlaySwordTrail(true);
+
+			player->SetActiveAttBox(true);
 		}
 
-		int frameCount = sapling->GetModel()->ClipByIndex(4)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
+		if (currFrame == 17)
+		{
+			player->SwordTrail()->Delete(true);
+			player->PlaySwordTrail(false);
+
+			player->slash.Use = false;
+			player->SetActiveAttBox(false);
+
+		}
+
+		if (currFrame > frameCount - comboInterval)
+		{
+			behavior = bIdle;
+
+			canMove = true;
+			canAttack[2] = true;
+			canJump = true;
+			canSkill = true;
+
+			countTime = true;
+		}
+	}
+	else if (combo == 2)
+	{
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(5)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
+
+		if (currFrame == 13)
+		{
+			player->SwordTrail()->Delete(false);
+			player->PlaySwordTrail(true);
+
+			player->SetActiveAttBox(true);
+		}
 
 		if (currFrame == 20)
 		{
-			trail->Delete(false);
-			bSwordSpectrum = true;
+			player->SwordTrail()->Delete(true);
+			player->PlaySwordTrail(false);
+
+			player->slash.Use = false;
+
+			player->SetActiveAttBox(false);
 		}
 
-		if (currFrame == 33)
+		if (currFrame > frameCount - comboInterval)
 		{
-			trail->Delete(true);
-			bSwordSpectrum = false;
-		}
+			behavior = bIdle;
+			
+			canMove = true;
+			canAttack[3] = true;
+			canJump = true;
+			canSkill = true;
 
-		if (currFrame > frameCount - 20)
-			ableAttack[1] = true;
-
-		if (currFrame == frameCount - 1)
-			Reset();
-	}
-	
-	//Attack2
-	if (Mouse::Get()->Down(0) && ableAttack[1] == true)
-	{
-		isAttack[1] = true;
-
-		if (attackTrigger[1] == false)
-		{
-			attackTrigger[1] = true;
-			hitTrigger = false;
-
-			SetAttack2();
+			countTime = true;
 		}
 	}
-
-	//Attack2 Release
-	if (motion == 5 && isAttack[1])
+	else if (combo == 3)
 	{
-		if (hitTrigger == false)
-		{
-			bAttack = true;
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(6)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
 
-			hitTrigger = true;
+		if (currFrame == 12)
+		{
+			player->SwordTrail()->Delete(false);
+			player->PlaySwordTrail(true);
+
+			player->SetActiveAttBox(true);
 		}
 
-		int frameCount = sapling->GetModel()->ClipByIndex(5)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame > frameCount - 20)
-			ableAttack[2] = true;
-
-		if (currFrame == frameCount - 1)
-			Reset();
-	}
-
-	//Attack3
-	if (Mouse::Get()->Down(0) && ableAttack[2] == true)
-	{
-		isAttack[2] = true;
-
-		if (attackTrigger[2] == false)
+		if (currFrame == 18)
 		{
-			attackTrigger[2] = true;
-			hitTrigger = false;
-			trail->Reset();
+			player->SwordTrail()->Delete(true);
+			player->PlaySwordTrail(false);
 
-			SetAttack3();
-		}
-	}
-
-	//Attack3 Release
-	if (motion == 6 && isAttack[2] == true)
-	{
-		if (hitTrigger == false)
-		{
-			bAttack = true;
-
-			hitTrigger = true;
+			player->SetActiveAttBox(false);
 		}
 
-		int frameCount = sapling->GetModel()->ClipByIndex(6)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame == 25)
+		if (currFrame > frameCount - comboInterval)
 		{
-			trail->Delete(false);
-			bSwordSpectrum = true;
+			behavior = bIdle;
+
+			canMove = true;
+			canJump = true;
+			canSkill = true;
+
+			time = 1.0f;
 		}
-
-		if (currFrame == 35)
-		{
-			bSwordSpectrum = false;
-		}
-
-		if (currFrame == 45)
-			trail->Delete(true);
-
-		if (currFrame == frameCount - 1)
-			Reset();
-	}
-}
-
-void Player::Evade()
-{
-	if (isSkill[0] == true) return;
-
-	if (Keyboard::Get()->Down('C') && curCoolTime[5] == 0.0f)
-	{
-		isEvade = true;
-
-		curCoolTime[5] = 2.0f;
-
-		if (evadeTrigger == false)
-		{
-			evadeTrigger = true;
-
-			SetEvade();
-		}
-	}
-
-	if (motion == 3 && isEvade == true)
-	{
-		if(isEvade == true)
-			position += backward * runSpeed * Time::Delta();
-
-		int frameCount = sapling->GetModel()->ClipByIndex(3)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame == frameCount - 1)
-			Reset();
 	}
 }
 
 void Player::Jump()
 {
-	//Jump
-	if (Keyboard::Get()->Down(VK_SPACE) && ableJump == true)
+	if (canJump == false) return;
+
+	if (Keyboard::Get()->Down(VK_SPACE) && behavior != bJump)
 	{
-		isJump = true;
-		isFall = false;
+		behavior = bJump;
 
-		ableIdle = false;
-		ableMove = true;
-		ableRun = false;
-		ableAttack[0] = false;
+		canMove = false;
+		canAttack[0] = false;
+		canEvade = false;
+		canSkill = false;
 
-		cameraRelease = true;
-
-		if (jumpTrigger == false)
-		{
-			jumpTrigger = true;
-
-			SetJump();
-		}
+		player->Jump();
 	}
 
-	//Jump Release
-	if (motion == 2 && isJump == true)
-	{
-		int frameCount = sapling->GetModel()->ClipByIndex(2)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame > 11)
-			isUp = true;
-
-		if (currFrame > 24)
-			isFall = true;
-
-		if (currFrame == frameCount - 1)
-			Reset();
-	}
+	static bool up = false;
+	static bool down = false;
 	
-	if (isFall == true)
-		position += down * runSpeed * Time::Delta();
-	else if (isUp == true)
-		position += up * runSpeed * Time::Delta();
-}
-#pragma endregion
-
-#pragma region skill motion
-void Player::SuperJump()
-{
-	if (cameraShake == true)
-		cameraShake = false;
-
-	if (Keyboard::Get()->Down('X') && curCoolTime[0] == 0.0f)
+	if (behavior == bJump)
 	{
-		bSkill = true;
-		isSkill[0] = true;
-		isFall = false;
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(2)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
 
-		cameraRelease = true;
+		if (currFrame == 8)
+			up = true;
 
-		curCoolTime[0] = 5.0f;
-		mp -= 1000;
+		if (currFrame == 14)
+			down = true;
 
-		if (skillTrigger[0] == false)
+		if (currFrame > frameCount - comboInterval)
 		{
-			skillTrigger[0] = true;
+			CanReset();
+			behavior = bIdle;
 
-			SetSuperJump();
+ 			up = down = false;
 		}
 	}
 
-	if (motion == 7 && isSkill[0] == true)
-	{
-		int frameCount = sapling->GetModel()->ClipByIndex(7)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-		
-		if (currFrame > 35)
-		{
-			sapling->SetClipSpeed(1.0f);
-			isUp = true;
-		}
+	if (behavior != bJump) return;
 
-		if (currFrame > 50)
-		{
-			isFall = true;
-			activeColliderAtt = true;
-		}
+	const float speed = 2.0f;
 
-		if (isFall == true && position.y < height + 0.1f)
-		{
-			sapling->SetCurrFrameTweenMode(0, frameCount - 20);
-			
-			cameraShake = true;
-			
-			Reset();
-		}
-		else if (currFrame > 60)
-			sapling->SetCurrFrameTweenMode(0, 60);
-
-	}
-
-	if (isSkill[0] == false) return;
-
-	if (isFall == true)
-	{
-		position += down * runSpeed * jumpAccel * Time::Delta();
-		position += forward * runSpeed * 5.0f * Time::Delta();
-	}
-	else if (isUp == true)
-	{
-		jumpAccel += 0.02f;
-		position += forward * runSpeed * 5.0f * Time::Delta();
-		position += up * runSpeed * jumpAccel * Time::Delta();
-	}
-	
-	jumpAccel = Math::Clamp(jumpAccel, 0.0f, 10.0f);
+	if (down == true)
+		position.y -= speed * Time::Delta();
+	else if (up == true)
+		position.y += speed * Time::Delta();
 }
 
-void Player::DashAttack()
+void Player::Evade()
 {
-	if (Keyboard::Get()->Down('Q') && curCoolTime[1] == 0.0f)
+	if (canEvade == false) return;
+	if (rCoolTime[0] > 0.0f) return;
+
+	if (Keyboard::Get()->Down('C') && behavior != bEvade && mp > consumeMana[0])
 	{
-		bSkill = true;
-		isSkill[1] = true;
+		canMove = false;
+		canAttack[0] = false;
+		canJump = false;
+		canSkill = false;
 
-		curCoolTime[1] = 5.0f;
-		mp -= 500;
-		activeColliderAtt = true;
+		behavior = bEvade;
+		
+		player->Evade();
+		player->SetActiveHitBox(false);
+		player->SetActiveAttBox(false);
+		player->PlaySwordTrail(false);
+		player->SwordTrail()->Reset();
 
-		if (skillTrigger[1] == false)
+		mp -= consumeMana[5];
+	}
+
+	if(behavior == bEvade)
+	{
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(3)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
+
+		if (currFrame > frameCount - 3)
 		{
-			skillTrigger[1] = true;
+			CanReset();
 
-			startPosition = position;
+			behavior = bIdle;
+			rCoolTime[0] = coolTime[0];
 
-			SetDash();
+			player->SetActiveHitBox(true);
 		}
 	}
 
-	if (motion == 8 && isSkill[1] == true)
+	if (behavior != bEvade) return;
+
+	Vector3 backward = player->Backward();
+	float speed = 400.0f;
+
+	position += backward * speed * Time::Delta();
+}
+
+void Player::Skill()
+{
+	if (canSkill == false) return;
+	
+	Skill1();
+	Skill2();
+	Skill3();
+	Skill4();
+	Skill5();
+}
+
+void Player::Skill1()
+{
+	if (rCoolTime[1] > 0.0f) return;
+
+	if (Keyboard::Get()->Down('1') && behavior != bSkill && mp > consumeMana[1])
 	{
-		Vector3 posi = position - startPosition;
-		float length = D3DXVec3Length(&posi);
+		canMove = false;
+		canAttack[0] = false;
+		canJump = false;
+		canEvade = false;
+
+		behavior = bSkill;
+
+		player->SwordTrail()->Reset();
+		player->Skill1();
+
+		currSkill = 1;
+		mp -= consumeMana[1];
+	}
+
+	if (currSkill == 1 && behavior == bSkill)
+	{
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(7)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
 		
-		position += forward * 2.0f * runSpeed *  Time::Delta();
-		position.y = height;
-
-		if (length > 80.0f || damageMoment == true)
+		if (currFrame == 13)
 		{
-			skillTrigger[1] = false;
+			player->SwordTrail()->Delete(false);
+			player->PlaySwordTrail(true);
 
-			if (skillTrigger[2] == false)
+			player->SetActiveAttBox(true);
+
+			if(buff == true)
+				player->slash.Use = true;
+		}
+
+		if (currFrame == 24)
+		{
+			player->SwordTrail()->Delete(true);
+			player->PlaySwordTrail(false);
+
+			player->slash.Use = false;
+
+			player->SetActiveAttBox(false);
+		}
+
+		if (currFrame > frameCount - comboInterval)
+		{
+			CanReset();
+
+			behavior = bIdle;
+			currSkill = 0;
+			rCoolTime[1] = coolTime[1];
+		}
+	}
+}
+
+void Player::Skill2()
+{
+	if (rCoolTime[2] > 0.0f) return;
+
+	if (Keyboard::Get()->Down('2') && behavior != bSkill && mp > consumeMana[2])
+	{
+		canMove = false;
+		canAttack[0] = false;
+		canJump = false;
+		canEvade = false;
+
+		behavior = bSkill;
+
+		player->Skill2();
+
+		currSkill = 2;
+		mp -= consumeMana[2];
+	}
+
+	if (currSkill == 2 && behavior == bSkill)
+	{
+		static bool trigger = false;
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(8)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
+
+		if (Keyboard::Get()->Up('2'))
+		{
+			player->fireball.Shoot = true;
+			player->fireball.Direct = player->Forward();
+		}
+
+		if (currFrame == 10)
+		{
+			player->fireball.StartPosition = GetPosition();
+			player->fireball.Use = true;
+			trigger = true;
+		}
+		
+		if (trigger == true)
+		{
+			Vector3 forward = player->Forward();
+
+			if (Keyboard::Get()->Press('A'))
 			{
-				skillTrigger[2] = true;
+				float dot = D3DXVec3Dot(&cLeft, &forward);
+				Vector3 temp;
+				D3DXVec3Cross(&temp, &forward, &cLeft);
 
-				SetSlash();
+				float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
+				float theta = sign * acosf(dot);
+
+				rotation.y += theta * rotRatio;
+			}
+
+			if (Keyboard::Get()->Press('D'))
+			{
+				float dot = D3DXVec3Dot(&cRight, &forward);
+				Vector3 temp;
+				D3DXVec3Cross(&temp, &forward, &cRight);
+
+				float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
+				float theta = sign * acosf(dot);
+
+				rotation.y += theta * rotRatio;
+			}
+
+			if (currFrame == 20)
+				player->GetPlayer()->SetCurrFrameTweenMode(0, 19);
+		}
+
+		if ((currFrame > frameCount - 3) || player->fireball.Shoot == true)
+		{
+			CanReset();
+
+			behavior = bIdle;
+			currSkill = 0;
+			rCoolTime[2] = coolTime[2];
+
+			trigger = false;
+		}
+	}
+}
+
+void Player::Skill3()
+{
+	if (rCoolTime[3] > 0.0f) return;
+
+	if (Keyboard::Get()->Down('Q') && behavior != bSkill && mp > consumeMana[3])
+	{
+		canMove = false;
+		canAttack[0] = false;
+		canJump = false;
+		canEvade = false;
+
+		behavior = bSkill;
+
+		player->Skill3();
+
+		currSkill = 3;
+		mp -= consumeMana[3];
+
+		player->footprint.Use = true;
+		player->SetActiveAttBox(true);
+	}
+
+	if (currSkill == 3 && behavior == bSkill)
+	{
+		const float speed = 1000.0f;
+		Vector3 forward = player->Forward();
+
+		if (Keyboard::Get()->Press('A'))
+		{
+			float dot = D3DXVec3Dot(&cLeft, &forward);
+			Vector3 temp;
+			D3DXVec3Cross(&temp, &forward, &cLeft);
+
+			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
+			float theta = sign * acosf(dot);
+
+			rotation.y += theta * rotRatio;
+		}
+
+		if (Keyboard::Get()->Press('D'))
+		{
+			float dot = D3DXVec3Dot(&cRight, &forward);
+			Vector3 temp;
+			D3DXVec3Cross(&temp, &forward, &cRight);
+
+			float sign = temp.y >= 0.0f ? 1.0f : -1.0f;
+			float theta = sign * acosf(dot);
+
+			rotation.y += theta * rotRatio;
+		}
+
+		position += forward * speed * Time::Delta();
+
+		static float time = 0.0f;
+		time += Time::Delta();
+
+		if (time >= 5.0f)
+		{
+			CanReset();
+
+			behavior = bIdle;
+			currSkill = 0;
+			rCoolTime[3] = coolTime[3];
+
+			time = 0.0f;
+
+			player->footprint.Use = false;
+			player->SetActiveAttBox(false);
+		}
+	}
+}
+
+void Player::Skill4()
+{
+	if (rCoolTime[4] > 0.0f) return;
+
+	if (Keyboard::Get()->Down('E') && behavior != bSkill && mp > consumeMana[4])
+	{
+		canMove = false;
+		canAttack[0] = false;
+		canJump = false;
+		canEvade = false;
+
+		behavior = bSkill;
+
+		player->Skill4();
+
+		currSkill = 4;
+		mp -= consumeMana[4];
+
+		rBuffTime = 30.0f;
+		player->buff.Use = true;
+		buff = true;
+	}
+
+	if (currSkill == 4 && behavior == bSkill)
+	{
+		int frameCount = player->GetPlayer()->GetModel()->ClipByIndex(10)->FrameCount();
+		int currFrame = player->GetPlayer()->GetCurrentFrameTweenMode();
+
+		if (currFrame > frameCount - 3)
+		{
+			CanReset();
+
+			behavior = bIdle;
+			currSkill = 0;
+			rCoolTime[4] = coolTime[4];
+		}
+	}
+}
+
+void Player::Skill5()
+{
+	if (rCoolTime[5] > 0.0f) return;
+
+	static float time = 0.0f;
+	static Vector3 finalPos;
+
+	if (Keyboard::Get()->Down('X') && behavior != bSkill && mp > consumeMana[5])
+	{
+		canMove = false;
+		canAttack[0] = false;
+		canJump = false;
+		canEvade = false;
+
+		behavior = bSkill;
+
+		player->Skill5();
+
+		currSkill = 5;
+		mp -= consumeMana[5];
+
+		{
+			time = 0.0f;
+
+			player->SetSkillRange(&finalPos);
+		}
+	}
+	
+	if (currSkill == 5 && behavior == bSkill)
+	{
+		static float rate = 0.0f;
+		static bool active = false;
+
+		time += Time::Get()->Delta();
+		rate = time;
+		shader->AsScalar("projectorRate")->SetFloat(rate);
+
+		if (time > 1.0f)
+		{
+			if (active == false)
+			{
+				player->SetSkillRange(&finalPos);
+
+				player->SetActiveAttBox(true);
+
+				active = true;
+			}
+			else if(active == true)
+			{
+				CanReset();
+
+				behavior = bIdle;
+				currSkill = 0;
+				rCoolTime[5] = coolTime[5];
+
+				time = 0.0f;
+
+				position = finalPos;
+
+				player->SetActiveAttBox(false);
+
+				active = false;
 			}
 		}
 	}
+}
 
-	if (motion == 9 && isSkill[1] == true)
+void Player::CountTime()
+{
+	static bool buffTrigger = false;
+	static bool invinTrigger = false;
+
+	for (int i = 0; i < 6; i++)
 	{
-		position.y = height;
-		sapling->SetClipSpeed(3.0f);
+		if (rCoolTime[i] == 0.0f) continue;
 
-		int frameCount = sapling->GetModel()->ClipByIndex(9)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
+		rCoolTime[i] -= Time::Delta();
+		rCoolTime[i] = Math::Clamp(rCoolTime[i], 0.0f, coolTime[i]);
+	}
 
-		if (currFrame == frameCount - 1)
-			Reset();
+	if (rBuffTime > 0.0f)
+	{
+		rBuffTime -= Time::Delta();
+		rBuffTime = Math::Clamp(rBuffTime, 0.0f, buffTime);
+
+		if (player->SwordTrail()->TrailMapName() != L"/Trails/Unleashed_Purple.png")
+			player->SwordTrail()->TrailMap(L"/Trails/Unleashed_Purple.png");
+
+		atk = defaultAtk * 2.0f;
+
+		buffTrigger = true;
+	}
+	else if(buffTrigger == true)
+	{
+		if (player->SwordTrail()->TrailMapName() != L"/Trails/Unleashed_Orange.png")
+			player->SwordTrail()->TrailMap(L"/Trails/Unleashed_Orange.png");
+
+		player->buff.Use = false;
+		buff = false;
+
+		atk = defaultAtk;
+		buffTrigger = false;
+	}
+
+	if (rInvincibleTime > 0.0f)
+	{
+		rInvincibleTime -= Time::Delta();
+		rInvincibleTime = Math::Clamp(rInvincibleTime, 0.0f, invincibleTime);
+
+		invinTrigger = true;
+	}
+	else if(invinTrigger == true)
+	{
+		player->SetActiveHitBox(true);
+
+		Color color = player->GetPlayer()->GetColor(0);
+		color.r = 0.0f;
+		player->GetPlayer()->SetColor(0, color);
+
+		invinTrigger = false;
 	}
 }
 
-void Player::Yell()
+void Player::SetDirection()
 {
-	if (Keyboard::Get()->Down('E') && curCoolTime[2] == 0.0f)
-	{
-		bSkill = true;
-		isSkill[2] = true;
-
-		curCoolTime[2] = 10.0f;
-		mp -= 500;
-		activeColliderAtt = true;
-
-		if (skillTrigger[2] == false)
-		{
-			skillTrigger[2] = true;
-
-			SetYell();
-		}
-	}
-
-	if (motion == 10 && isSkill[2] == true)
-	{
-		int frameCount = sapling->GetModel()->ClipByIndex(10)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame == frameCount - 1)
-			Reset();
-	}
-}
-void Player::UpperCut()
-{
-	if (Keyboard::Get()->Down('1') && curCoolTime[3] == 0.0f)
-	{
-		bSkill = true;
-		isSkill[3] = true;
-
-		curCoolTime[3] = 3.0f;
-		mp -= 300;
-		activeColliderAtt = true;
-
-		if (skillTrigger[3] == false)
-		{
-			skillTrigger[3] = true;
-
-			SetAttack3();
-		}
-	}
-
-	if (motion == 6 && isSkill[3] == true)
-	{
-		int frameCount = sapling->GetModel()->ClipByIndex(6)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame == frameCount - 1)
-			Reset();
-	}
-}
-void Player::FireBall()
-{
-	if (Keyboard::Get()->Press('2') && curCoolTime[4] == 0.0f)
-	{
-		bSkill = true;
-		isSkill[4] = true;
-
-		fireballTime += Time::Delta();
-
-		fireballTime = Math::Clamp(fireballTime, 0.0f, 5.0f);
-		fireballScale = (fireballTime * 25.0f) + 5.0f;
-		
-		fireballDirect = forward;
-		fireballStartPosition = position;
-		fireballRotation = rotation;
-
-		Vector3 fScale = Vector3(0.0f, 0.0f, 0.0f);
-		Quaternion quat(0.0f, 0.0f, 0.0f, 0.20f);
-
-		Matrix defaultBonePosition = sapling->GetModel()->BoneByIndex(15)->Transform();
-		Matrix frameBonePosition = sapling->BoneTransformByIndex(15);
-		Matrix matrix = defaultBonePosition * frameBonePosition * sapling->GetTransform(0)->World();
-
-		D3DXMatrixDecompose(&fScale, &quat, &fireballPosition, &matrix);
-
-		if (skillTrigger[4] == false)
-		{
-			skillTrigger[4] = true;
-
-			SetFireball();
-		}
-	}
-
-	if (motion == 11 && isSkill[4] == true)
-	{
-		int frameCount = sapling->GetModel()->ClipByIndex(11)->FrameCount();
-		int currFrame = sapling->GetCurrentFrameTweenMode();
-
-		if (currFrame == 10)
-			bFireball = true;
-
-		if (Keyboard::Get()->Up('2'))//발사
-		{
-			mp -= 1000;
-
-			shootFireball = true;
-		}
-
-		if (currFrame >= 20 && shootFireball == false)//불충전
-		{
-			sapling->SetPlayFrame(0, false);
-			sapling->SetPauseFrame(0, true);
-		}
-		
-		if (shootFireball == true)
-		{
-			sapling->SetPlayFrame(0, true);
-			sapling->SetPauseFrame(0, false);
-		}
-
-		if (currFrame == frameCount - 1)
-		{
-			curCoolTime[4] = 5.0f;
-
-			Reset();
-		}
-	}
-}
-
-#pragma endregion
-
-#pragma region Set Animation
-void Player::SetIdle()
-{
-	std::cout << "idle" << std::endl;
-	sapling->PlayTweenMode(0, 0, 1.0f);
-}
-
-void Player::SetRun()
-{
-	std::cout << "Run" << std::endl;
-	sapling->PlayTweenMode(0, 1, 1.0f);
-}
-
-void Player::SetJump()
-{
-	std::cout << "Jump" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 2, 2.0f);
-}
-
-void Player::SetEvade()
-{
-	std::cout << "Evade" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 3, 2.0f);
-}
-
-void Player::SetAttack1()
-{
-	std::cout << "Attack1" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 4, 3.0f);
-
-	mp += 100;
-}
-
-void Player::SetAttack2()
-{
-	std::cout << "Attack2" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 5, 3.0f);
-
-	mp += 100;
-}
-
-void Player::SetAttack3()
-{
-	std::cout << "Attack3" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 6, 2.0f);
-
-	mp += 100;
-}
-
-void Player::SetSuperJump()
-{
-	std::cout << "SuperJump" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 7, 2.0f);
-}
-
-void Player::SetDash()
-{
-	std::cout << "Dash" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 8, 2.0f);
-}
-
-void Player::SetSlash()
-{
-	std::cout << "Slash" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 9, 2.0f);
-}
-
-void Player::SetYell()
-{
-	std::cout << "Yell" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 10, 2.0f);
-}
-
-void Player::SetFireball()
-{
-	std::cout << "Fireball" << std::endl;
-	sapling->ResetFrame(0);
-	sapling->PlayNormalMode(0, 11, 1.0f);
-}
-
-#pragma endregion
-
-void Player::CreateColliders()
-{
-	collidersHit = new ColliderObject();
-
-	collidersHit->Init = new Transform();
-	collidersHit->Init->Position(0.0f, 0.0f, 0.0f);
-	collidersHit->Init->Scale(3, 8, 3);
-
-	collidersHit->Transform = new Transform();
-	collidersHit->Collider = new Collider(collidersHit->Transform, collidersHit->Init);
-
-	//////////////////////////////////////////////////////////////////////////////////////////
-
-	collidersAtt = new ColliderObject;
-
-	collidersAtt->Init = new Transform();
-
-	collidersAtt->Transform = new Transform();
-	collidersAtt->Collider = new Collider(collidersAtt->Transform, collidersAtt->Init);
-
-	//////////////////////////////////////////////////////////////////////////////////////////
+	player->Position(&position);
+	player->Rotation(&rotation);
 	
-	colliderFireball = new ColliderObject;
+	/*static float aaa = 0.0f;
+	ImGui::SliderFloat("height", &aaa, -10.0f, 50.0f);
+	position.y = height + aaa;*/
+	position.y = height;
 
-	colliderFireball->Init = new Transform();
-
-	colliderFireball->Transform = new Transform();
-	colliderFireball->Collider = new Collider(colliderFireball->Transform, colliderFireball->Init);
-}
-
-void Player::CollidersUpdate()
-{
-	Vector3 posi = position;
-	posi.y += 4.0f;
-
-	collidersHit->Init->Position(posi);
-	collidersHit->Init->Rotation(rotation);
-	//collidersHit->Init->Scale(3, 8, 3);
-
-	collidersHit->Collider->Update();
-	//////////////////////////////////////////////////////////////////////////////////////////
-
-	if (isSkill[0] == true)
-	{
-		collidersAtt->Init->Position(0.0f, 0.0f, 0.0f);
-		collidersAtt->Init->Scale(500.0f, 500.0f, 500.0f);
-		collidersAtt->Init->Rotation(0.0f, 0.0f, 0.0f);
-		collidersAtt->Transform->World(worldBonesPosition[0]);
-	}
-	else if (isSkill[1] == true && motion == 8)
-	{
-		collidersAtt->Init->Position(0.0f, 80.0f, -30.0f);
-		collidersAtt->Init->Scale(100.0f, 100.0f, 50.0f);
-		collidersAtt->Init->Rotation(0.0f, 0.0f, 0.0f);
-		collidersAtt->Transform->World(worldBonesPosition[0]);
-	}
-	else if (isSkill[2] == true)
-	{
-		collidersAtt->Init->Position(0.0f, 0.0f, 0.0f);
-		collidersAtt->Init->Scale(500.0f, 500.0f, 500.0f);
-		collidersAtt->Init->Rotation(0.0f, 0.0f, 0.0f);
-		collidersAtt->Transform->World(worldBonesPosition[0]);
-	}
-	else
-	{
-		collidersAtt->Init->Scale(5.0f, 25.0f, 5.0f);
-		collidersAtt->Init->Position(0.0f, 24.0f, 0.0f);
-		collidersAtt->Transform->World(weaponTransform->World() * worldBonesPosition[20]);
-	}
-	collidersAtt->Collider->Update();
-
-	//////////////////////////////////////////////////////////////////////////////////////////
-	
-	float fs = fireballScale / 7;
-	colliderFireball->Collider->GetTransform()->Position(fireballPosition);
-	colliderFireball->Collider->GetTransform()->Scale(fs, fs, fs);
-	colliderFireball->Collider->GetTransform()->Rotation(fireballRotation);
-	colliderFireball->Collider->Update();
-}
-
-void Player::CollidersRender()
-{
-	if(showCollider == false) return;
-
-	if (isEvade == true)
-		collidersHit->Collider->Render(Color(1, 1, 0, 1));
-	else
-		collidersHit->Collider->Render();
-	
-	///////////////////////////////////////////////////////////
-
-	if (activeColliderAtt == true)
-		collidersAtt->Collider->Render(Color(1, 1, 0, 1));
-	else
-		collidersAtt->Collider->Render();
-
-	///////////////////////////////////////////////////////////
-
-	if (shootFireball == true)
-		colliderFireball->Collider->Render(Color(1, 1, 0, 1));
-	else if(bFireball == true)
-		colliderFireball->Collider->Render();
-}
-
-void Player::CreateImage()
-{
-	hpTexture = new Texture(L"Red.png");
-
-	hpRender = new Render2D();
-	hpRender->GetTransform()->Scale(208.0f, 13.0f, 1);
-	hpRender->GetTransform()->Position(490.0f, 167.0f, 0);
-	hpRender->SRV(hpTexture->SRV());
-	hpRender->Pass(1);
-
-	mpTexture = new Texture(L"Blue.png");
-
-	mpRender = new Render2D();
-	mpRender->GetTransform()->Scale(208.0f, 13.0f, 1);
-	mpRender->GetTransform()->Position(797.0f, 167.0f, 0);
-	mpRender->SRV(mpTexture->SRV());
-	mpRender->Pass(1);
-
-	skillTexture[0] = new Texture(L"sapling/Icon/JusticeLeap_Tex.png");
-	skillTexture[1] = new Texture(L"sapling/Icon/dash_Tex.png");
-	skillTexture[2] = new Texture(L"sapling/Icon/Roar_Tex.png");
-	skillTexture[3] = new Texture(L"sapling/Icon/ShockBlow_Tex.png");
-	skillTexture[4] = new Texture(L"sapling/Icon/fireBall_Tex.png");
-	skillTexture[5] = new Texture(L"sapling/Icon/Acrobat_Tex.png");
-
-	float x = 410.0f;
-	for (UINT i = 0; i < 6; i++)
-	{
-		skillRender[i] = new Render2D();
-		skillRender[i]->GetTransform()->Scale(50.0f, 50.0f, 1);
-		skillRender[i]->GetTransform()->Position(x, 115.0f, 0);
-		skillRender[i]->SRV(skillTexture[i]->SRV());
-		skillRender[i]->Pass(2);
-
-		x += 80.0f;
-		if (i == 2)
-			x += 70.0f;
-	}
-}
-
-void Player::ImageUpdate()
-{
-	float ratio = (float)hp / (float)maxHp;
-	hpRender->ChangeColorPoint(ratio);
-	
-	ratio = (float)mp / (float)maxMp;
-	mpRender->ChangeColorPoint(ratio);
-
-	hpRender->Update();
-	mpRender->Update();
-
-	for (UINT i = 0; i < 6; i++)
-		skillRender[i]->GetShader()->AsScalar("CoolTime")->SetFloat(curCoolTime[i] / coolTime[i]);
-
-	for (UINT i = 0; i < 6; i++)
-		skillRender[i]->Update();
-}
-
-void Player::ImageRender()
-{
-	mpRender->Render();
-	hpRender->Render();
-
-	for (UINT i = 0; i < 6; i++)
-		skillRender[i]->Render();
-
-	string str = to_string(hp) + " / " + to_string(maxHp);
-	Gui::Get()->RenderText(445.0f, 545.0f, str);
-
-	str = to_string(mp) + " / " + to_string(maxMp);
-	Gui::Get()->RenderText(750.0f, 545.0f, str);
-
-}
-
-void Player::CreateWeapon()
-{
-	weapon = new ModelRender(shader);
-	weapon->ReadMesh(L"Weapon/L_Dual17_SM");
-	weapon->ReadMaterial(L"Weapon/L_Dual17_SM");
-	
-	weapon->AddTransform();
-
-	weapon->UpdateTransforms();
-	weapon->Pass(1);
-
-	weaponTransform = new Transform();
-	weaponTransform->Position(7.5f, 12.0f, 11.5f);
-	weaponTransform->Rotation(0.0f, -1.0f, 2.25f);
-	weaponTransform->Scale(3.0f, 3.0f, 3.0f);
-}
-
-void Player::AttachWeapon()
-{
-	weapon->GetTransform(0)->World(weaponTransform->World() *worldBonesPosition[20]);
-	
-	weapon->UpdateTransforms();
-	weapon->Update();
-}
-
-void Player::CreateParticle()
-{
-	footprintParticle = new ParticleSystem(L"FootPrint");
-	fireballParticle = new ParticleSystem(L"Fireball");
-	
-	trail = new TrailSystem(L"SwordTrail");
-}
-
-void Player::ParticleUpdate()
-{
-	if (bFootprint == true)
-		footprintParticle->Add(position);
-
-	if (bFireball == true)
-	{
-		if (shootFireball == true)
-			fireballPosition += fireballDirect * 5.0f * runSpeed * Time::Delta();
-		fireballParticle->Rotate(1.0f);
-		fireballParticle->Add(fireballPosition);
-		fireballParticle->Scale(fireballScale);
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////
-
-	if (bSwordSpectrum == true)
-	{
-		Vector3 targetPosition = Vector3(0.0f, 0.0f, 0.0f);
-		Vector3 rotation = Vector3(0.0f, 0.0f, 0.0f);
-		Vector3 scale = Vector3(0.0f, 0.0f, 0.0f);
-		Quaternion quat(0.0f, 0.0f, 0.0f, 0.0f);
-
-		Matrix defaultBonePosition = sapling->GetModel()->BoneByIndex(20)->Transform();
-		Matrix frameBonePosition = sapling->BoneTransformByIndex(20);
-		Matrix mat = defaultBonePosition * frameBonePosition * sapling->GetTransform(0)->World();
-
-		D3DXMatrixDecompose(&scale, &quat, &targetPosition, &mat);
-
-		trail->Add(collidersAtt->Collider->Bottom(), collidersAtt->Collider->Top());
-	}
-
-	trail->Update();
-	//////////////////////////////////////////////////////////////////////////////////////////
-	
-	float length = D3DXVec3Length(&(fireballStartPosition - fireballPosition));
-	
-	if (length > 200.0f)
-	{
-		bFireball = false;
-		fireballScale = 0.0f;
-		fireballTime = 0.0f;
-		shootFireball = false;
-	}
-
-	footprintParticle->Update();
-	fireballParticle->Update();
-}
-
-void Player::ParticleRender()
-{
-	trail->Render();
-	footprintParticle->Render();
-	fireballParticle->Render();
-}
-
-void Player::SettingVector()
-{
-	position = sapling->GetTransform(0)->GetPosition();
-	
 	cForward = Context::Get()->GetCamera()->Forward(); cForward.y = 0.0f;
 	D3DXVec3Normalize(&cForward, &cForward);
 
@@ -1254,79 +944,164 @@ void Player::SettingVector()
 	D3DXVec3Normalize(&cFLeft, &cFLeft);
 
 	cBRight = -cFLeft;
-
-	forward = sapling->GetTransform(0)->Forward();
-	std::cout << forward.x << " " << forward.y << " " << forward.z << std::endl;
-	forward.x = -forward.x; forward.y = 0.0; forward.z = -forward.z;
-	D3DXVec3Normalize(&forward, &forward);
-
-	backward = sapling->GetTransform(0)->Forward();
-	backward.y = 0.0;
-	D3DXVec3Normalize(&backward, &backward);
-
-	right = sapling->GetTransform(0)->Right();
-	right.x = -right.x; right.y = 0.0; right.z = -right.z;
-	D3DXVec3Normalize(&right, &right);
-
-	left = sapling->GetTransform(0)->Right();
-	left.y = 0.0f;
-	D3DXVec3Normalize(&left, &left);
 }
 
-void Player::CoolTime()
+void Player::CanReset()
 {
-	curCoolTime[0] -= Time::Delta();
-	curCoolTime[1] -= Time::Delta();
-	curCoolTime[2] -= Time::Delta();
-	curCoolTime[3] -= Time::Delta();
-	curCoolTime[4] -= Time::Delta();
-	curCoolTime[5] -= Time::Delta();
-
-	curCoolTime[0] = Math::Clamp(curCoolTime[0], 0.0f, 5.0f);
-	curCoolTime[1] = Math::Clamp(curCoolTime[1], 0.0f, 5.0f);
-	curCoolTime[2] = Math::Clamp(curCoolTime[2], 0.0f, 10.0f);
-	curCoolTime[3] = Math::Clamp(curCoolTime[3], 0.0f, 3.0f);
-	curCoolTime[4] = Math::Clamp(curCoolTime[4], 0.0f, 5.0f);
-	curCoolTime[5] = Math::Clamp(curCoolTime[5], 0.0f, 2.0f);
+	canMove = true;
+	canAttack[0] = canAttack[1] = true;
+	canAttack[2] = canAttack[3] = false;
+	canJump = true;
+	canEvade = true;
+	canSkill = true;
 }
 
-void Player::Reset()
+void Player::CreateUI()
 {
-	std::cout << "Reset" << std::endl;
-	//Current Status
-	//isRun = false; 여기서 할필요없음
-	isJump = false;
-	isUp = false;
-	isFall = true;
-	//bAttack = false;
-	isAttack[0] =  isAttack[1] = isAttack[2] = false;
-	isEvade = false;
-	bSkill = false;
-	isSkill[0] = isSkill[1] = isSkill[2] = isSkill[3] = isSkill[4] = false;
+	texture[0] = new Texture(L"Red.png");
+	texture[1] = new Texture(L"Blue.png");
+	texture[2] = new Texture(L"sapling/Icon/Acrobat_Tex.png");
+	texture[3] = new Texture(L"sapling/Icon/ShockBlow_Tex.png");
+	texture[4] = new Texture(L"sapling/Icon/fireBall_Tex.png");
+	texture[5] = new Texture(L"sapling/Icon/dash_Tex.png");
+	texture[6] = new Texture(L"sapling/Icon/Roar_Tex.png");
+	texture[7] = new Texture(L"sapling/Icon/JusticeLeap_Tex.png");
+	texture[8] = new Texture(L"sapling/Icon/Roar_Tex.png");
 
-	//Motion Trigger
-	idleTrigger = false;
-	runTrigger = false;
-	jumpTrigger = false;
-	attackTrigger[0] = attackTrigger[1] =  attackTrigger[2] = false;
-	hitTrigger = false;
-	evadeTrigger = false;
-	skillTrigger[0] = skillTrigger[1] = skillTrigger[2] = skillTrigger[3] = skillTrigger[4] = false;
+	for (UINT i = 0; i < 9; i++)
+		render2D[i] = new Render2D();
 
-	//Able Motion
-	ableIdle = true;
-	ableMove = true;
-	ableRun = true;
-	ableJump = true;
-	ableAttack[0] = true;
-	ableAttack[1] = ableAttack[2] = false;
+	float width = D3D::Width();
+	float height = D3D::Height();
 
-	damageMoment = false;
-	
-	jumpAccel = 0.0f;
+	render2D[0]->GetTransform()->Position(width * 0.5f - 205.0f, height * 0.5f - 215.0f, 0);
+	render2D[1]->GetTransform()->Position(width * 0.5f + 205.0f, height * 0.5f - 215.0f, 0);
 
-	cameraRelease = false;
+	for (UINT i = 0; i < 2; i++)
+	{
+		render2D[i]->GetTransform()->Scale(250.0f, 20.0f, 1);
+		render2D[i]->SRV(texture[i]->SRV());
+		render2D[i]->Pass(1);
+	}
 
-	activeColliderAtt = false;
-	bSwordSpectrum = false;
+	float interval = 0.0f;
+	for (UINT i = 2; i < 8; i++)
+	{
+		render2D[i]->GetTransform()->Position(width * 0.5f - 305.0f + interval, height * 0.5f - 300.0f, 0);
+		render2D[i]->GetTransform()->Scale(50.0f, 50.0f, 1);
+		render2D[i]->SRV(texture[i]->SRV());
+		render2D[i]->Pass(2);
+
+		if (i == 4) interval += 110.0f;
+
+		interval += 100.0f;
+	}
+
+	render2D[8]->GetTransform()->Position(width * 0.5f - 319.5f, height * 0.5f - 190.0f, 0);
+	render2D[8]->GetTransform()->Scale(20.0f, 20.0f, 1);
+	render2D[8]->SRV(texture[8]->SRV());
+	render2D[8]->Pass(2);
+}
+
+void Player::UpdateUI()
+{
+	hp = Math::Clamp(hp, 0.0f, maxHp);
+	mp = Math::Clamp(mp, 0.0f, maxMp);
+
+	float ratio = hp * 0.0001f;
+	render2D[0]->ChangeColorPoint(ratio);
+
+	ratio = mp * 0.0001f;
+	render2D[1]->ChangeColorPoint(ratio);
+
+	float width = D3D::Width();
+	float height = D3D::Height();
+
+	for (UINT i = 2; i < 8; i++)
+		render2D[i]->GetShader()->AsScalar("CoolTime")->SetFloat(rCoolTime[i - 2] / coolTime[i - 2]);
+
+	render2D[8]->GetShader()->AsScalar("CoolTime")->SetFloat(rBuffTime / buffTime);
+
+	for (UINT i = 0; i < 9; i++)
+		render2D[i]->Update();
+}
+
+void Player::RenderUI()
+{
+	string str = to_string((UINT)hp) + " / " + to_string((UINT)maxHp);
+	Gui::Get()->RenderText(390.0f, 568.0f, str);
+
+	str = to_string((UINT)mp) + " / " + to_string((UINT)maxMp);
+	Gui::Get()->RenderText(390.0f + 415.0f, 568.0f, str);
+
+	for (UINT i = 0; i < 8; i++)
+		render2D[i]->Render();
+
+	if(buff == true)
+		render2D[8]->Render();
+}
+
+void Player::ColliderUpdate()
+{
+	if (behavior == bAttack || currSkill == 1)
+	{
+		player->AttBox()->Init->Position(0, 80, -80);
+		player->AttBox()->Init->Scale(200.0f, 100.0f, 150.0f);
+	}
+	else if (currSkill == 3)
+	{
+		player->AttBox()->Init->Position(0, 80, -80);
+		player->AttBox()->Init->Scale(150, 150, 150);
+	}
+	else if (currSkill == 5)
+	{
+		player->AttBox()->Init->Position(0, 80, -1000);
+		player->AttBox()->Init->Scale(200, 150, 2000);
+	}
+	else
+	{
+		player->AttBox()->Init->Position(0, 80, -80);
+		player->AttBox()->Init->Scale(0.0f, 0.0f, 0.0f);
+	}
+
+
+	if(player->GetActiveAttBox() == true)
+		player->AttColor(Color(1, 1, 0, 1));
+	else
+		player->AttColor(Color(0, 1, 0, 1));
+
+	if (player->GetActiveHitBox() == true)
+		player->HitColor(Color(1, 1, 0, 1));
+	else
+		player->HitColor(Color(0, 1, 0, 1));
+}
+
+ColliderObject * Player::HitBox()
+{
+	return player->HitBox();
+}
+
+ColliderObject * Player::AttBox()
+{
+	return player->AttBox();
+}
+
+ColliderObject * Player::FireBox()
+{
+	return player->FireBox();
+}
+
+bool Player::GetActiveAttBox()
+{
+	return player->GetActiveAttBox();
+}
+
+bool Player::GetActiveHitBox()
+{
+	return player->GetActiveHitBox();
+}
+
+bool Player::GetActiveFireBox()
+{
+	return player->GetActiveFireBox();
 }

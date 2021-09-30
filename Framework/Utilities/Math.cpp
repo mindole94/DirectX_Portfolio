@@ -83,20 +83,6 @@ Color Math::RandomColor4()
 	return result;
 }
 
-float Math::Clamp(float value, float min, float max)
-{
-	value = value > max ? max : value;
-	value = value < min ? min : value;
-
-	return value;
-}
-
-float Math::Lerp(float value1, float value2, float t)
-{
-	//return (1 - t) * value1 + t * value2;
-	return value1 + (value2 - value1) * t;
-}
-
 void Math::LerpMatrix(OUT D3DXMATRIX & out, const D3DXMATRIX & m1, const D3DXMATRIX & m2, float amount)
 {
 	out._11 = m1._11 + (m2._11 - m1._11) * amount;
@@ -193,7 +179,7 @@ void Math::MatrixDecompose(const D3DXMATRIX & m, OUT Vector3 & S, OUT Vector3 & 
 
 	D3DXMATRIX temp;
 	D3DXMatrixRotationQuaternion(&temp, &rotation);
-
+	
 	R.x = asin(-temp._32);
 	R.y = atan2(temp._31, temp._33);
 	R.z = atan2(temp._12, temp._22);

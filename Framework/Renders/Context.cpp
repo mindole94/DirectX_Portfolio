@@ -31,6 +31,9 @@ Context::Context()
 	perspective = new Perspective(desc.Width, desc.Height);
 	viewport = new Viewport(desc.Width, desc.Height);
 	camera = new Freedom();
+
+	ZeroMemory(culling, sizeof(Plane) * 4);
+	clipping = Plane(0, 0, 0, 0);
 }
 
 Context::~Context()
@@ -55,26 +58,26 @@ void Context::Render()
 {
 	viewport->RSSetViewport();
 
+	//string str = "";
 
-	string str = "";
+	///*str = string("FrameRate : ") + to_string(ImGui::GetIO().Framerate);
+	//Gui::Get()->RenderText(5, 35, 1, 1, 1, str);*/
 
-	str = string("FrameRate : ") + to_string(ImGui::GetIO().Framerate);
-	Gui::Get()->RenderText(5, 5, 1, 1, 1, str);
+	//Vector3 R;
+	//camera->RotationDegree(&R);
 
+	//Vector3 P;
+	//camera->Position(&P);
 
-	Vector3 R;
-	camera->RotationDegree(&R);
+	//str = "Camera Rotation : ";
+	//str += to_string((int)R.x) + ", " + to_string((int)R.y) + ", " + to_string((int)R.z);
+	//Gui::Get()->RenderText(5, 5, 1, 1, 1, str);
+	////Gui::Get()->RenderText(5, 20, 1, 1, 1, str);
 
-	Vector3 P;
-	camera->Position(&P);
-
-	str = "Camera Rotation : ";
-	str += to_string((int)R.x) + ", " + to_string((int)R.y) + ", " + to_string((int)R.z);
-	Gui::Get()->RenderText(5, 20, 1, 1, 1, str);
-
-	str = "Camera Position : ";
-	str += to_string((int)P.x) + ", " + to_string((int)P.y) + ", " + to_string((int)P.z);
-	Gui::Get()->RenderText(5, 35, 1, 1, 1, str);
+	//str = "Camera Position : ";
+	//str += to_string((int)P.x) + ", " + to_string((int)P.y) + ", " + to_string((int)P.z);
+	//Gui::Get()->RenderText(5, 20, 1, 1, 1, str);
+	////Gui::Get()->RenderText(5, 35, 1, 1, 1, str);
 }
 
 Matrix Context::View()

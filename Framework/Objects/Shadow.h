@@ -11,6 +11,8 @@ public:
 
 	ID3D11ShaderResourceView* SRV() { return renderTarget->SRV(); }
 
+	void Position(Vector3 vec);
+
 private:
 	void CalcViewProjection();
 

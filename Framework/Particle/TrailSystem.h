@@ -1,26 +1,32 @@
 #pragma once
 
-#define MAX_TRAIL_NUM 800
+#define MAX_TRAIL_NUM 1000
 
 class TrailSystem : public Renderer
 {
 public:
-	TrailSystem(wstring file, bool bColor = false);
+	TrailSystem();
 	~TrailSystem();
+
+	void Update();
+	void Render();
 
 	void Reset();
 
 	void Add(Vector3 start, Vector3 end);
 	void Delete(bool bDelete) { this->bDelete = bDelete; }
 
-	void Update();
-	void Render();
+	void TrailMap(string file);
+	void TrailMap(wstring file);
 
-	void SetColor(Color color);
+	wstring TrailMapName() { return trailMap->GetFile(); }
+
+	void UseColor(bool use) { bColor = use; }
+
+	void SetCount(int num) { count = num; }
 
 private:
 	void Delete();
-	void ReadFile(wstring file);
 
 private:
 	struct VertexTrail
@@ -28,29 +34,29 @@ private:
 		Vector3 Position;
 		Vector2 Uv;
 
-		float padding[3];
+		Color Color;
+	};
+
+	struct TrailPosition
+	{
+		Vector3 Bottom;
+		Vector3 Top;
 	};
 
 private:
-	Texture* map = NULL;
-	ID3DX11EffectShaderResourceVariable* sMap;
+	Texture* trailMap = NULL;
+	ID3DX11EffectShaderResourceVariable* sTrailMap;
 
 	VertexTrail* vertices = NULL;
 	UINT* indices = NULL;
 
 	bool bDelete = false;
-	
+
 	float deleteTime = 0.0f;
 
-	UINT deleteCount = 0;
-	UINT currentCount = 0;
-	UINT activeVertex = 0;
+	Color color = Color(1, 1, 0, 1);
+	bool bColor = false;
 
-	Vector3 firstStart;
-	Vector3 firstEnd;
-
-	Vector3 prevStart;
-	Vector3 prevEnd;
-
-	Color color;
+	vector<TrailPosition> position; //벡터 한개당 vertices (count * 2)개씩
+	int count = 5;
 };

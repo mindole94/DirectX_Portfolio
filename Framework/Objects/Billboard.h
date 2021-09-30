@@ -11,6 +11,9 @@ public:
 
 	void Update();
 	void Render();
+	void PreRender_Reflection();
+
+	void GetCullingPlanes(Plane* planes);
 
 private:
 	struct VertexBillboard
@@ -26,4 +29,6 @@ private:
 	vector<wstring> textureFiles;
 	TextureArray* textureArray = NULL;
 	ID3DX11EffectShaderResourceVariable* sDiffuseMap;
+
+	Plane planes[6];
 };
