@@ -1,0 +1,97 @@
+﻿  CubeSky.cpp
+d:\sga\homework\directxportfolio\framework\environment\cubesky.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Terrain.cpp
+d:\sga\homework\directxportfolio\framework\environment\terrain.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Framework.cpp
+d:\sga\homework\directxportfolio\framework\framework.h(25): fatal error C1083: 포함 파일을 열 수 없습니다. 'd3dx10math.h': No such file or directory
+  Mesh.cpp
+d:\sga\homework\directxportfolio\framework\meshes\mesh.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  MeshCube.cpp
+d:\sga\homework\directxportfolio\framework\meshes\meshcube.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  MeshCylinder.cpp
+d:\sga\homework\directxportfolio\framework\meshes\meshcylinder.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  MeshGrid.cpp
+d:\sga\homework\directxportfolio\framework\meshes\meshgrid.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  MeshQuad.cpp
+d:\sga\homework\directxportfolio\framework\meshes\meshquad.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  MeshRender.cpp
+d:\sga\homework\directxportfolio\framework\meshes\meshrender.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  MeshSphere.cpp
+d:\sga\homework\directxportfolio\framework\meshes\meshsphere.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Model.cpp
+d:\sga\homework\directxportfolio\framework\model\model.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  ModelAnimator.cpp
+d:\sga\homework\directxportfolio\framework\model\modelanimator.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  ModelClip.cpp
+d:\sga\homework\directxportfolio\framework\model\modelclip.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  ModelMesh.cpp
+d:\sga\homework\directxportfolio\framework\model\modelmesh.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  ModelMeshPart.cpp
+d:\sga\homework\directxportfolio\framework\model\modelmeshpart.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  ModelRender.cpp
+d:\sga\homework\directxportfolio\framework\model\modelrender.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Billboard.cpp
+d:\sga\homework\directxportfolio\framework\objects\billboard.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Collider.cpp
+d:\sga\homework\directxportfolio\framework\objects\collider.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Buffers.cpp
+d:\sga\homework\directxportfolio\framework\renders\buffers.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Context.cpp
+d:\sga\homework\directxportfolio\framework\renders\context.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  코드를 생성하고 있습니다...
+  컴파일하고 있습니다...
+  DebugLine.cpp
+d:\sga\homework\directxportfolio\framework\renders\debugline.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Lighting.cpp
+d:\sga\homework\directxportfolio\framework\renders\lighting.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Material.cpp
+d:\sga\homework\directxportfolio\framework\renders\material.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  PerFrame.cpp
+d:\sga\homework\directxportfolio\framework\renders\perframe.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Render2D.cpp
+d:\sga\homework\directxportfolio\framework\renders\render2d.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Renderer.cpp
+d:\sga\homework\directxportfolio\framework\renders\renderer.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Shader.cpp
+d:\sga\homework\directxportfolio\framework\renders\shader.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Texture.cpp
+d:\sga\homework\directxportfolio\framework\renders\texture.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'framework.h': No such file or directory
+  Transform.cpp
+d:\sga\homework\directxportfolio\framework\renders\transform.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  D3D.cpp
+d:\sga\homework\directxportfolio\framework\systems\d3d.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Gui.cpp
+d:\sga\homework\directxportfolio\framework\systems\gui.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Keyboard.cpp
+d:\sga\homework\directxportfolio\framework\systems\keyboard.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'framework.h': No such file or directory
+  Mouse.cpp
+d:\sga\homework\directxportfolio\framework\systems\mouse.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'framework.h': No such file or directory
+  Time.cpp
+d:\sga\homework\directxportfolio\framework\systems\time.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'framework.h': No such file or directory
+  Window.cpp
+d:\sga\homework\directxportfolio\framework\systems\window.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  BinaryFile.cpp
+d:\sga\homework\directxportfolio\framework\utilities\binaryfile.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Math.cpp
+d:\sga\homework\directxportfolio\framework\utilities\math.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Path.cpp
+d:\sga\homework\directxportfolio\framework\utilities\path.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  String.cpp
+d:\sga\homework\directxportfolio\framework\utilities\string.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Xml.cpp
+d:\sga\homework\directxportfolio\framework\utilities\xml.cpp(24): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  코드를 생성하고 있습니다...
+  컴파일하고 있습니다...
+  Camera.cpp
+d:\sga\homework\directxportfolio\framework\viewer\camera.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Freedom.cpp
+d:\sga\homework\directxportfolio\framework\viewer\freedom.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Orthographic.cpp
+d:\sga\homework\directxportfolio\framework\viewer\orthographic.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Perspective.cpp
+d:\sga\homework\directxportfolio\framework\viewer\perspective.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Projection.cpp
+d:\sga\homework\directxportfolio\framework\viewer\projection.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  Viewport.cpp
+d:\sga\homework\directxportfolio\framework\viewer\viewport.cpp(1): fatal error C1083: 포함 파일을 열 수 없습니다. 'Framework.h': No such file or directory
+  코드를 생성하고 있습니다...

@@ -1,0 +1,247 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Main.h" />
+    <ClInclude Include="RectangleDemo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="TriangleDemo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="VertexColorDemo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="VertexLine2Demo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="VertexLineDemo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="World2Demo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="WorldDemo.h">
+      <Filter>Vertex</Filter>
+    </ClInclude>
+    <ClInclude Include="GridDemo.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="CubeDemo.h">
+      <Filter>Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureDemo.h">
+      <Filter>Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureSamplerDemo.h">
+      <Filter>Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="TerrainDemo.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="GetHeightDemo.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="VerticalRaycastDemo.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshDemo.h">
+      <Filter>Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="CubeSkyDemo.h">
+      <Filter>Environment</Filter>
+    </ClInclude>
+    <ClInclude Include="InstanceDemo.h">
+      <Filter>Instancing</Filter>
+    </ClInclude>
+    <ClInclude Include="InstanceFrameworkDemo.h">
+      <Filter>Instancing</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadDemo.h">
+      <Filter>DirectCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="ComputeDemo.h">
+      <Filter>DirectCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="GetAnimationBonesDemo.h">
+      <Filter>DirectCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewportDemo.h">
+      <Filter>Projection</Filter>
+    </ClInclude>
+    <ClInclude Include="ProjectionDemo.h">
+      <Filter>Projection</Filter>
+    </ClInclude>
+    <ClInclude Include="TerrainRaycastDemo.h">
+      <Filter>Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="BoneRaycastDemo.h">
+      <Filter>Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="ObbDemo.h">
+      <Filter>Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="GetMultiBonesDemo.h">
+      <Filter>DirectCompute</Filter>
+    </ClInclude>
+    <ClInclude Include="LightingDemo.h">
+      <Filter>Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="NormalMapDemo.h">
+      <Filter>Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="PointLightDemo.h">
+      <Filter>Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="SpotLightDemo.h">
+      <Filter>Lighting</Filter>
+    </ClInclude>
+    <ClInclude Include="BillboardDemo.h">
+      <Filter>Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="WeatherDemo.h">
+      <Filter>Environment</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowFrameworkDemo.h">
+      <Filter>Objects</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="RectangleDemo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="TriangleDemo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="VertexColorDemo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="VertexLine2Demo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="VertexLineDemo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="World2Demo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="WorldDemo.cpp">
+      <Filter>Vertex</Filter>
+    </ClCompile>
+    <ClCompile Include="GridDemo.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="CubeDemo.cpp">
+      <Filter>Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureDemo.cpp">
+      <Filter>Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureSamplerDemo.cpp">
+      <Filter>Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="TerrainDemo.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="GetHeightDemo.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="VerticalRaycastDemo.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshDemo.cpp">
+      <Filter>Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="CubeSkyDemo.cpp">
+      <Filter>Environment</Filter>
+    </ClCompile>
+    <ClCompile Include="InstanceDemo.cpp">
+      <Filter>Instancing</Filter>
+    </ClCompile>
+    <ClCompile Include="InstanceFrameworkDemo.cpp">
+      <Filter>Instancing</Filter>
+    </ClCompile>
+    <ClCompile Include="ThreadDemo.cpp">
+      <Filter>DirectCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="ComputeDemo.cpp">
+      <Filter>DirectCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="GetAnimationBonesDemo.cpp">
+      <Filter>DirectCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewportDemo.cpp">
+      <Filter>Projection</Filter>
+    </ClCompile>
+    <ClCompile Include="ProjectionDemo.cpp">
+      <Filter>Projection</Filter>
+    </ClCompile>
+    <ClCompile Include="TerrainRaycastDemo.cpp">
+      <Filter>Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="BoneRaycastDemo.cpp">
+      <Filter>Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="ObbDemo.cpp">
+      <Filter>Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="GetMultiBonesDemo.cpp">
+      <Filter>DirectCompute</Filter>
+    </ClCompile>
+    <ClCompile Include="LightingDemo.cpp">
+      <Filter>Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="NormalMapDemo.cpp">
+      <Filter>Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="PointLightDemo.cpp">
+      <Filter>Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="SpotLightDemo.cpp">
+      <Filter>Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="BillboardDemo.cpp">
+      <Filter>Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="WeatherDemo.cpp">
+      <Filter>Environment</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowFrameworkDemo.cpp">
+      <Filter>Objects</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Vertex">
+      <UniqueIdentifier>{8449d757-457c-496e-8ea6-e0553712269f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Terrain">
+      <UniqueIdentifier>{31f55cd0-5c1c-4c3b-978b-26668ef15fee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Mesh">
+      <UniqueIdentifier>{eccaebd6-e9fe-4c32-a901-ac475daab00c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Texture">
+      <UniqueIdentifier>{674c4990-89bf-4533-b325-1f16a7b7e567}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Environment">
+      <UniqueIdentifier>{4211eae5-eb3c-4790-b33b-042b87c39eb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Instancing">
+      <UniqueIdentifier>{c20a5051-df53-49a8-8a82-cba3306d232e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectCompute">
+      <UniqueIdentifier>{c42c5740-7e96-4892-afdc-543a03572058}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Projection">
+      <UniqueIdentifier>{041b8fff-80fc-438c-a785-ba2f4d6bb7ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Objects">
+      <UniqueIdentifier>{fdc5538a-287b-4579-86b7-3f401e6c418d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lighting">
+      <UniqueIdentifier>{6483aac6-5f2c-4b9d-b656-879822cf19ac}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

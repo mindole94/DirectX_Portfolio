@@ -1,0 +1,17 @@
+0  : Idle
+1  : Walking
+2  : Running
+3  : Jump			일반 점프
+
+4  : Jump Back			무적 백점프
+5  : Sprinting Forward Roll	무적 구르기
+
+6  : Smash			평타 콤보1
+7  : Standing Melee Attack Kick 평타 콤보2
+8  : Standing Melee Attack 360	평타 콤보3
+
+9  : Right Hook			스킬1
+10 : Upward Thrust		스킬2
+11 : Jumping Up			스킬3-1
+12 : Jumping Down		스킬3-2
+13 : Chicken Dance		승리 세레머니
